@@ -57,7 +57,7 @@ export default function PerfilFuncionario() {
             </div>
             <div className="bg-emerald-900/30 rounded-lg p-3 border border-emerald-800">
               <h3 className="text-xs font-medium text-emerald-400 mb-1">
-                Sua Comissão (40%)
+                Sua Comissão ({comissao.porcentagem || 40}%)
               </h3>
               <p className="text-lg font-bold text-emerald-300">
                 R$ {comissao.comissao.toFixed(2).replace(".", ",")}
@@ -124,7 +124,7 @@ export default function PerfilFuncionario() {
                           R$ {lavagem.preco.toFixed(2).replace(".", ",")}
                         </p>
                         <p className="text-xs text-emerald-400 mt-0.5">
-                          Comissão: R$ {(lavagem.preco * 0.4).toFixed(2).replace(".", ",")}
+                          Comissão: R$ {(lavagem.preco * (comissao.porcentagem || 40) / 100).toFixed(2).replace(".", ",")}
                         </p>
                       </div>
                     </div>

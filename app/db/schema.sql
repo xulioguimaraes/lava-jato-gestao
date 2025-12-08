@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS funcionarios (
   email TEXT UNIQUE,
   telefone TEXT,
   ativo INTEGER DEFAULT 1,
+  porcentagem_comissao REAL DEFAULT 40,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

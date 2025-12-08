@@ -67,12 +67,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   try {
     await criarLavagem(params.id!, descricao, precoNum, fotoUrl, dataLavagem);
-    // Redirecionar mantendo o filtro de semana se existir
+    // Redirecionar mantendo o filtro de semana se existir e adicionando parâmetro de sucesso
     const url = new URL(request.url);
     const semana = url.searchParams.get("semana");
     const redirectUrl = semana
-      ? `/funcionario/publico/${params.id}?semana=${semana}`
-      : `/funcionario/publico/${params.id}`;
+      ? `/funcionario/publico/${params.id}?semana=${semana}&sucesso=1`
+      : `/funcionario/publico/${params.id}?sucesso=1`;
     return redirect(redirectUrl);
   } catch (error) {
     return json(
@@ -92,22 +92,54 @@ export default function FuncionarioPublico() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [precoFormatado, setPrecoFormatado] = useState("");
 
-  // Fechar modal e limpar campos quando o formulário for submetido com sucesso
-  // (quando não há erro e não está mais submetindo)
+  // Rastrear quando está submetendo
   useEffect(() => {
-    if (!isSubmitting && !actionData?.erro && navigation.state === "idle") {
-      // Verificar se houve um submit recente (não apenas carregamento inicial)
-      if (navigation.formData?.get("descricao")) {
-        setIsModalOpen(false);
-        setPrecoFormatado("");
-        setPreviewFoto(null);
-        setFotoSelecionada(false);
-        if (fotoInputRef.current) {
-          fotoInputRef.current.value = "";
-        }
+    if (navigation.state === "submitting" && navigation.formMethod === "POST") {
+      wasSubmittingRef.current = true;
+    }
+  }, [navigation.state, navigation.formMethod]);
+
+  // Fechar modal imediatamente quando o submit for bem-sucedido
+  useEffect(() => {
+    // Se estava submetendo e agora está em loading/idle sem erro, significa que foi bem-sucedido
+    // (loading acontece durante redirect, idle acontece após redirect)
+    if (
+      wasSubmittingRef.current &&
+      (navigation.state === "loading" || navigation.state === "idle") &&
+      !actionData?.erro
+    ) {
+      // Fechar modal imediatamente
+      setIsModalOpen(false);
+      // Limpar campos
+      setPrecoFormatado("");
+      setPreviewFoto(null);
+      setFotoSelecionada(false);
+      if (fotoInputRef.current) {
+        fotoInputRef.current.value = "";
+      }
+      // Resetar o ref apenas quando estiver completamente idle
+      if (navigation.state === "idle") {
+        wasSubmittingRef.current = false;
       }
     }
-  }, [isSubmitting, actionData?.erro, navigation.state]);
+  }, [navigation.state, actionData?.erro]);
+
+  // Detectar sucesso na URL e mostrar toast
+  useEffect(() => {
+    const sucesso = searchParams.get("sucesso");
+    if (sucesso === "1") {
+      setShowToast(true);
+      // Remover parâmetro da URL após mostrar o toast
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("sucesso");
+      setSearchParams(newParams, { replace: true });
+      // Esconder toast após 3 segundos
+      const timer = setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, setSearchParams]);
 
   // Data padrão: hoje
   const hoje = new Date().toISOString().split("T")[0];
@@ -115,6 +147,8 @@ export default function FuncionarioPublico() {
   const fotoInputRef = useRef<HTMLInputElement>(null);
   const [fotoSelecionada, setFotoSelecionada] = useState(false);
   const [previewFoto, setPreviewFoto] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const wasSubmittingRef = useRef(false);
 
   // Função para navegar entre semanas
   const navegarSemana = (novoOffset: number) => {
@@ -193,6 +227,67 @@ export default function FuncionarioPublico() {
 
   return (
     <div className="min-h-screen bg-slate-900">
+      {/* Toast de Sucesso */}
+      {showToast && (
+        <div
+          className="fixed top-4 right-4 z-50 transition-all duration-300 ease-in-out"
+          style={{
+            animation: "slideIn 0.3s ease-out",
+          }}
+        >
+          <style>{`
+            @keyframes slideIn {
+              from {
+                transform: translateX(100%);
+                opacity: 0;
+              }
+              to {
+                transform: translateX(0);
+                opacity: 1;
+              }
+            }
+          `}</style>
+          <div className="bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]">
+            <svg
+              className="w-5 h-5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <div className="flex-1">
+              <p className="font-medium text-sm">
+                Lavagem registrada com sucesso!
+              </p>
+            </div>
+            <button
+              onClick={() => setShowToast(false)}
+              className="text-emerald-100 hover:text-white transition-colors"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="bg-slate-800 border-b border-slate-700">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
           <div className="flex items-center gap-2.5">
@@ -296,7 +391,7 @@ export default function FuncionarioPublico() {
           </div>
           <div className="card p-3">
             <h3 className="text-xs font-medium text-slate-400 mb-1">
-              Sua Comissão (40%)
+              Sua Comissão ({comissao.porcentagem || 40}%)
             </h3>
             <p className="text-lg font-bold text-emerald-400">
               R$ {comissao.comissao.toFixed(2).replace(".", ",")}
@@ -600,8 +695,8 @@ export default function FuncionarioPublico() {
                     </button>
                     <button
                       type="submit"
-                      disabled={isSubmitting}
-                      className="btn-primary flex-1"
+                      disabled={isSubmitting || !previewFoto}
+                      className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? "Registrando..." : "Registrar Lavagem"}
                     </button>
@@ -666,7 +761,12 @@ export default function FuncionarioPublico() {
                         </p>
                         <span className="text-xs text-emerald-400">
                           • Comissão: R${" "}
-                          {(lavagem.preco * 0.4).toFixed(2).replace(".", ",")}
+                          {(
+                            (lavagem.preco * (comissao.porcentagem || 40)) /
+                            100
+                          )
+                            .toFixed(2)
+                            .replace(".", ",")}
                         </span>
                       </div>
                     </div>

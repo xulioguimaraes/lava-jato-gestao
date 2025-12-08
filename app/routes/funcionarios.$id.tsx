@@ -30,9 +30,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const nome = formData.get("nome") as string;
   const telefone = formData.get("telefone") as string;
   const ativo = formData.get("ativo") === "on";
+  const porcentagemComissao = formData.get("porcentagem_comissao") as string;
 
   if (intent === "update") {
-    await atualizarFuncionario(params.id!, nome, undefined, telefone, ativo);
+    const porcentagem = porcentagemComissao ? parseFloat(porcentagemComissao) : undefined;
+    if (porcentagem !== undefined && (porcentagem < 0 || porcentagem > 100)) {
+      return json({ erro: "Porcentagem deve estar entre 0 e 100" }, { status: 400 });
+    }
+    await atualizarFuncionario(params.id!, nome, undefined, telefone, ativo, porcentagem);
     return redirect(`/funcionarios/${params.id}`);
   }
 
@@ -198,6 +203,25 @@ export default function FuncionarioDetalhes() {
                     placeholder="(00) 00000-0000"
                   />
                 </div>
+                <div>
+                  <label htmlFor="porcentagem_comissao" className="block text-xs font-medium text-slate-300 mb-1">
+                    Porcentagem de Comissão (%)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      id="porcentagem_comissao"
+                      name="porcentagem_comissao"
+                      defaultValue={funcionario.porcentagem_comissao || 40}
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      className="input-field pr-8"
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">%</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">Valor padrão: 40%</p>
+                </div>
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -244,7 +268,7 @@ export default function FuncionarioDetalhes() {
               </p>
             </div>
             <div>
-              <p className="text-xs text-slate-400">Comissão (40%)</p>
+              <p className="text-xs text-slate-400">Comissão ({comissao.porcentagem || 40}%)</p>
               <p className="text-lg font-bold text-emerald-400">
                 R$ {comissao.comissao.toFixed(2).replace(".", ",")}
               </p>

@@ -6,13 +6,14 @@ export interface Funcionario {
   email: string | null;
   telefone: string | null;
   ativo: number;
+  porcentagem_comissao: number;
   created_at: string;
 }
 
 export async function listarFuncionarios(): Promise<Funcionario[]> {
   try {
     const result = await db.execute({
-      sql: "SELECT id, nome, email, telefone, ativo, created_at FROM funcionarios ORDER BY nome",
+      sql: "SELECT id, nome, email, telefone, ativo, porcentagem_comissao, created_at FROM funcionarios ORDER BY nome",
       args: [],
     });
 
@@ -26,6 +27,7 @@ export async function listarFuncionarios(): Promise<Funcionario[]> {
       email: row.email ? String(row.email) : null,
       telefone: row.telefone ? String(row.telefone) : null,
       ativo: Number(row.ativo || 1),
+      porcentagem_comissao: Number(row.porcentagem_comissao || 40),
       created_at: String(row.created_at || ""),
     }));
   } catch (error) {
@@ -36,7 +38,7 @@ export async function listarFuncionarios(): Promise<Funcionario[]> {
 
 export async function buscarFuncionarioPorId(id: string): Promise<Funcionario | null> {
   const result = await db.execute({
-    sql: "SELECT id, nome, email, telefone, ativo, created_at FROM funcionarios WHERE id = ?",
+    sql: "SELECT id, nome, email, telefone, ativo, porcentagem_comissao, created_at FROM funcionarios WHERE id = ?",
     args: [id],
   });
 
@@ -51,6 +53,7 @@ export async function buscarFuncionarioPorId(id: string): Promise<Funcionario | 
     email: (row.email as string) || null,
     telefone: (row.telefone as string) || null,
     ativo: row.ativo as number,
+    porcentagem_comissao: Number(row.porcentagem_comissao || 40),
     created_at: row.created_at as string,
   };
 }
@@ -58,13 +61,14 @@ export async function buscarFuncionarioPorId(id: string): Promise<Funcionario | 
 export async function criarFuncionario(
   nome: string,
   email?: string,
-  telefone?: string
+  telefone?: string,
+  porcentagemComissao: number = 40
 ): Promise<Funcionario> {
   const id = crypto.randomUUID();
 
   await db.execute({
-    sql: "INSERT INTO funcionarios (id, nome, email, telefone) VALUES (?, ?, ?, ?)",
-    args: [id, nome, email || null, telefone || null],
+    sql: "INSERT INTO funcionarios (id, nome, email, telefone, porcentagem_comissao) VALUES (?, ?, ?, ?, ?)",
+    args: [id, nome, email || null, telefone || null, porcentagemComissao],
   });
 
   return buscarFuncionarioPorId(id) as Promise<Funcionario>;
@@ -75,12 +79,21 @@ export async function atualizarFuncionario(
   nome: string,
   email?: string,
   telefone?: string,
-  ativo?: boolean
+  ativo?: boolean,
+  porcentagemComissao?: number
 ): Promise<void> {
-  await db.execute({
-    sql: "UPDATE funcionarios SET nome = ?, email = ?, telefone = ?, ativo = ? WHERE id = ?",
-    args: [nome, email || null, telefone || null, ativo ? 1 : 0, id],
-  });
+  // Se porcentagemComissao não foi fornecida, manter o valor atual
+  if (porcentagemComissao !== undefined) {
+    await db.execute({
+      sql: "UPDATE funcionarios SET nome = ?, email = ?, telefone = ?, ativo = ?, porcentagem_comissao = ? WHERE id = ?",
+      args: [nome, email || null, telefone || null, ativo ? 1 : 0, porcentagemComissao, id],
+    });
+  } else {
+    await db.execute({
+      sql: "UPDATE funcionarios SET nome = ?, email = ?, telefone = ?, ativo = ? WHERE id = ?",
+      args: [nome, email || null, telefone || null, ativo ? 1 : 0, id],
+    });
+  }
 }
 
 export async function deletarFuncionario(id: string): Promise<void> {

@@ -179,12 +179,23 @@ export async function calcularTotalSemana(offsetSemana: number = 0): Promise<{
 export async function calcularComissaoFuncionario(
   funcionarioId: string,
   offsetSemana: number = 0
-): Promise<{ total: number; comissao: number }> {
+): Promise<{ total: number; comissao: number; porcentagem: number }> {
   const lavagens = await listarLavagensPorFuncionario(funcionarioId, offsetSemana);
   const total = lavagens.reduce((sum, l) => sum + l.preco, 0);
-  const comissao = total * 0.4; // 40%
+  
+  // Buscar a porcentagem de comissão do funcionário
+  const funcionarioResult = await db.execute({
+    sql: "SELECT porcentagem_comissao FROM funcionarios WHERE id = ?",
+    args: [funcionarioId],
+  });
+  
+  const porcentagem = funcionarioResult.rows.length > 0 
+    ? Number(funcionarioResult.rows[0].porcentagem_comissao || 40) 
+    : 40;
+  
+  const comissao = total * (porcentagem / 100);
 
-  return { total, comissao };
+  return { total, comissao, porcentagem };
 }
 
 // Função auxiliar para obter informações da semana (para exibição)
