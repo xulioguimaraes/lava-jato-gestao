@@ -92,6 +92,22 @@ export default function FuncionarioPublico() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [precoFormatado, setPrecoFormatado] = useState("");
 
+  // Fechar modal e limpar campos quando o formulário for submetido com sucesso
+  // (quando não há erro e não está mais submetindo)
+  useEffect(() => {
+    if (!isSubmitting && !actionData?.erro && navigation.state === "idle") {
+      // Verificar se houve um submit recente (não apenas carregamento inicial)
+      if (navigation.formData?.get("descricao")) {
+        setIsModalOpen(false);
+        setPrecoFormatado("");
+        setPreviewFoto(null);
+        setFotoSelecionada(false);
+        if (fotoInputRef.current) {
+          fotoInputRef.current.value = "";
+        }
+      }
+    }
+  }, [isSubmitting, actionData?.erro, navigation.state]);
 
   // Data padrão: hoje
   const hoje = new Date().toISOString().split("T")[0];
