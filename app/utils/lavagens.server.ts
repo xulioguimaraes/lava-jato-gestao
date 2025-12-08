@@ -6,6 +6,7 @@ export interface Lavagem {
   descricao: string;
   preco: number;
   foto_url: string | null;
+  tem_foto?: boolean;
   data_lavagem: string;
   created_at: string;
 }
@@ -76,7 +77,8 @@ export async function listarLavagensSemana(offsetSemana: number = 0): Promise<La
 
 export async function listarLavagensPorFuncionario(
   funcionarioId: string,
-  offsetSemana: number = 0
+  offsetSemana: number = 0,
+  incluirFotos: boolean = true
 ): Promise<Lavagem[]> {
   const { inicio, fim } = obterSemana(offsetSemana);
   
@@ -94,15 +96,21 @@ export async function listarLavagensPorFuncionario(
     ],
   });
 
-  return result.rows.map((row) => ({
-    id: row.id as string,
-    funcionario_id: row.funcionario_id as string,
-    descricao: row.descricao as string,
-    preco: row.preco as number,
-    foto_url: (row.foto_url as string) || null,
-    data_lavagem: row.data_lavagem as string,
-    created_at: row.created_at as string,
-  }));
+  return result.rows.map((row) => {
+    const fotoUrl = (row.foto_url as string) || null;
+    // Se não deve incluir fotos, retornar apenas um indicador
+    // Para reduzir o tamanho da resposta (fotos em base64 são muito grandes)
+    return {
+      id: row.id as string,
+      funcionario_id: row.funcionario_id as string,
+      descricao: row.descricao as string,
+      preco: row.preco as number,
+      foto_url: incluirFotos ? fotoUrl : (fotoUrl ? "placeholder" : null),
+      tem_foto: !!fotoUrl,
+      data_lavagem: row.data_lavagem as string,
+      created_at: row.created_at as string,
+    };
+  });
 }
 
 export async function criarLavagem(

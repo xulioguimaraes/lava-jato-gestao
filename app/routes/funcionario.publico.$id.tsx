@@ -28,7 +28,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const offsetSemana = parseInt(url.searchParams.get("semana") || "0", 10) || 0;
 
   const [lavagens, comissao, infoSemana] = await Promise.all([
-    listarLavagensPorFuncionario(funcionario.id, offsetSemana),
+    listarLavagensPorFuncionario(funcionario.id, offsetSemana, false), // false = não incluir fotos no loader
     calcularComissaoFuncionario(funcionario.id, offsetSemana),
     Promise.resolve(obterInfoSemana(offsetSemana)),
   ]);
@@ -149,6 +149,7 @@ export default function FuncionarioPublico() {
   const [previewFoto, setPreviewFoto] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const wasSubmittingRef = useRef(false);
+  const [fotosCarregadas, setFotosCarregadas] = useState<Record<string, string>>({});
 
   // Função para navegar entre semanas
   const navegarSemana = (novoOffset: number) => {
@@ -224,6 +225,91 @@ export default function FuncionarioPublico() {
       }
     }
   };
+
+  // Componente para carregar foto sob demanda
+  function FotoLazy({
+    lavagemId,
+    funcionarioId,
+    fotoCarregada,
+    onFotoCarregada,
+  }: {
+    lavagemId: string;
+    funcionarioId: string;
+    fotoCarregada?: string;
+    onFotoCarregada: (url: string) => void;
+  }) {
+    const [isLoading, setIsLoading] = useState(!fotoCarregada);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+      if (fotoCarregada) return;
+
+      // Carregar foto sob demanda
+      fetch(`/funcionario/publico/${funcionarioId}/foto/${lavagemId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.foto_url) {
+            onFotoCarregada(data.foto_url);
+            setIsLoading(false);
+          } else {
+            setError(true);
+            setIsLoading(false);
+          }
+        })
+        .catch(() => {
+          setError(true);
+          setIsLoading(false);
+        });
+    }, [lavagemId, funcionarioId, fotoCarregada, onFotoCarregada]);
+
+    if (error) {
+      return (
+        <div className="w-12 h-12 rounded bg-slate-700 border border-slate-700 shrink-0 flex items-center justify-center">
+          <svg
+            className="w-6 h-6 text-slate-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+        </div>
+      );
+    }
+
+    if (isLoading || !fotoCarregada) {
+      return (
+        <div className="w-12 h-12 rounded bg-slate-700 border border-slate-700 shrink-0 flex items-center justify-center animate-pulse">
+          <svg
+            className="w-6 h-6 text-slate-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={fotoCarregada}
+        alt="Lavagem"
+        className="w-12 h-12 rounded object-cover border border-slate-700 shrink-0"
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -739,11 +825,17 @@ export default function FuncionarioPublico() {
                   className="border border-slate-700 rounded-lg p-2.5 hover:bg-slate-800/50 transition-colors"
                 >
                   <div className="flex gap-2">
-                    {lavagem.foto_url && (
-                      <img
-                        src={lavagem.foto_url}
-                        alt={lavagem.descricao}
-                        className="w-12 h-12 rounded object-cover border border-slate-700 shrink-0"
+                    {lavagem.tem_foto && (
+                      <FotoLazy
+                        lavagemId={lavagem.id}
+                        funcionarioId={funcionario.id}
+                        fotoCarregada={fotosCarregadas[lavagem.id]}
+                        onFotoCarregada={(url) => {
+                          setFotosCarregadas((prev) => ({
+                            ...prev,
+                            [lavagem.id]: url,
+                          }));
+                        }}
                       />
                     )}
                     <div className="flex-1 min-w-0">
