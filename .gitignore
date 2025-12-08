@@ -5,6 +5,9 @@ node_modules/
 build/
 .remix/
 
+# Cache (Vite/Remix)
+.cache/
+
 # Environment variables
 .env
 .env.local
