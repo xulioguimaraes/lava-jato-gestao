@@ -1,0 +1,92 @@
+import { db } from "~/db/turso.server";
+
+export interface Funcionario {
+  id: string;
+  nome: string;
+  email: string | null;
+  telefone: string | null;
+  ativo: number;
+  created_at: string;
+}
+
+export async function listarFuncionarios(): Promise<Funcionario[]> {
+  try {
+    const result = await db.execute({
+      sql: "SELECT id, nome, email, telefone, ativo, created_at FROM funcionarios ORDER BY nome",
+      args: [],
+    });
+
+    if (!result || !result.rows) {
+      return [];
+    }
+
+    return result.rows.map((row: any) => ({
+      id: String(row.id || ""),
+      nome: String(row.nome || ""),
+      email: row.email ? String(row.email) : null,
+      telefone: row.telefone ? String(row.telefone) : null,
+      ativo: Number(row.ativo || 1),
+      created_at: String(row.created_at || ""),
+    }));
+  } catch (error) {
+    console.error("Erro ao listar funcionários:", error);
+    return [];
+  }
+}
+
+export async function buscarFuncionarioPorId(id: string): Promise<Funcionario | null> {
+  const result = await db.execute({
+    sql: "SELECT id, nome, email, telefone, ativo, created_at FROM funcionarios WHERE id = ?",
+    args: [id],
+  });
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  const row = result.rows[0];
+  return {
+    id: row.id as string,
+    nome: row.nome as string,
+    email: (row.email as string) || null,
+    telefone: (row.telefone as string) || null,
+    ativo: row.ativo as number,
+    created_at: row.created_at as string,
+  };
+}
+
+export async function criarFuncionario(
+  nome: string,
+  email?: string,
+  telefone?: string
+): Promise<Funcionario> {
+  const id = crypto.randomUUID();
+
+  await db.execute({
+    sql: "INSERT INTO funcionarios (id, nome, email, telefone) VALUES (?, ?, ?, ?)",
+    args: [id, nome, email || null, telefone || null],
+  });
+
+  return buscarFuncionarioPorId(id) as Promise<Funcionario>;
+}
+
+export async function atualizarFuncionario(
+  id: string,
+  nome: string,
+  email?: string,
+  telefone?: string,
+  ativo?: boolean
+): Promise<void> {
+  await db.execute({
+    sql: "UPDATE funcionarios SET nome = ?, email = ?, telefone = ?, ativo = ? WHERE id = ?",
+    args: [nome, email || null, telefone || null, ativo ? 1 : 0, id],
+  });
+}
+
+export async function deletarFuncionario(id: string): Promise<void> {
+  await db.execute({
+    sql: "DELETE FROM funcionarios WHERE id = ?",
+    args: [id],
+  });
+}
+
