@@ -44,7 +44,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return redirect("/dashboard");
   } catch (error: any) {
     return json(
-      { erro: "Erro ao criar funcionário. Tente novamente." },
+      { erro: "Erro ao criar funcionário. Tente novamente.", error: error },
       { status: 500 }
     );
   }
@@ -150,9 +150,7 @@ export default function NovoFuncionario() {
                     %
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Padrão: 40%
-                </p>
+                <p className="text-xs text-slate-500 mt-1">Padrão: 40%</p>
               </div>
             </div>
 
