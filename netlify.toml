@@ -5,8 +5,7 @@
 
 [functions]
   included_files = ["build/**", "node_modules/@libsql/**"]
-  node_bundler = "esbuild"
-  external_node_modules = ["@libsql/linux-x64-gnu", "@libsql/linux-arm64-gnu", "@libsql/linux-x64-musl", "@libsql/linux-arm64-musl"]
+  node_bundler = "nft"
 
 [[redirects]]
   from = "/*"
