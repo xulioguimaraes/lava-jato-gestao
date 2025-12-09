@@ -23,7 +23,10 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   if (senha.length < 6) {
-    return json({ erro: "A senha deve ter pelo menos 6 caracteres" }, { status: 400 });
+    return json(
+      { erro: "A senha deve ter pelo menos 6 caracteres" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -33,7 +36,10 @@ export async function action({ request }: ActionFunctionArgs) {
     if (error.message?.includes("UNIQUE constraint")) {
       return json({ erro: "Este email já está cadastrado" }, { status: 400 });
     }
-    return json({ erro: "Erro ao criar conta. Tente novamente." }, { status: 500 });
+    return json(
+      { erro: "Erro ao criar conta. Tente novamente.", error: error },
+      { status: 500 }
+    );
   }
 }
 
@@ -48,20 +54,29 @@ export default function Registro() {
         <div className="card p-6">
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-900/30 rounded-lg mb-3">
-              <svg className="w-5 h-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
-                <circle cx="10" cy="6" r="3"/>
-                <path d="M4 16c0-2.5 2.5-4.5 6-4.5s6 2 6 4.5v1H4v-1z"/>
+              <svg
+                className="w-5 h-5 text-indigo-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <circle cx="10" cy="6" r="3" />
+                <path d="M4 16c0-2.5 2.5-4.5 6-4.5s6 2 6 4.5v1H4v-1z" />
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-slate-100 mb-1">
               Criar Conta
             </h1>
-            <p className="text-slate-400 text-xs">Preencha os dados para começar</p>
+            <p className="text-slate-400 text-xs">
+              Preencha os dados para começar
+            </p>
           </div>
-          
+
           <Form method="post" className="space-y-4">
             <div>
-              <label htmlFor="nome" className="block text-xs font-medium text-slate-300 mb-1">
+              <label
+                htmlFor="nome"
+                className="block text-xs font-medium text-slate-300 mb-1"
+              >
                 Nome Completo
               </label>
               <input
@@ -74,7 +89,10 @@ export default function Registro() {
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-xs font-medium text-slate-300 mb-1">
+              <label
+                htmlFor="email"
+                className="block text-xs font-medium text-slate-300 mb-1"
+              >
                 Email
               </label>
               <input
@@ -87,7 +105,10 @@ export default function Registro() {
               />
             </div>
             <div>
-              <label htmlFor="senha" className="block text-xs font-medium text-slate-300 mb-1">
+              <label
+                htmlFor="senha"
+                className="block text-xs font-medium text-slate-300 mb-1"
+              >
                 Senha
               </label>
               <input
@@ -112,19 +133,40 @@ export default function Registro() {
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Criando...
                 </span>
-              ) : "Criar Conta"}
+              ) : (
+                "Criar Conta"
+              )}
             </button>
           </Form>
-          
+
           <p className="mt-4 text-center text-xs text-slate-400">
             Já tem conta?{" "}
-            <a href="/login" className="font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">
+            <a
+              href="/login"
+              className="font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+            >
               Fazer login
             </a>
           </p>
@@ -133,4 +175,3 @@ export default function Registro() {
     </div>
   );
 }
-
