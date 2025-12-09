@@ -1,4 +1,5 @@
 import { db } from "~/db/turso.server";
+import { randomUUID } from "crypto";
 
 export interface Funcionario {
   id: string;
@@ -64,7 +65,7 @@ export async function criarFuncionario(
   telefone?: string,
   porcentagemComissao: number = 40
 ): Promise<Funcionario> {
-  const id = crypto.randomUUID();
+  const id = randomUUID();
 
   try {
     // Tentativa com coluna porcentagem_comissao (schema atual)
