@@ -53,7 +53,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const descricao = formData.get("descricao") as string;
   const preco = formData.get("preco") as string;
-  const foto = formData.get("foto") as File | null;
   const dataLavagem = formData.get("data_lavagem") as string;
 
   if (!descricao || !preco || !dataLavagem) {
@@ -63,20 +62,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
     );
   }
 
-  if (!foto || foto.size === 0) {
-    return json({ erro: "Foto é obrigatória" }, { status: 400 });
-  }
-
   const precoNum = parseFloat(preco);
   if (isNaN(precoNum) || precoNum <= 0) {
     return json({ erro: "Preço inválido" }, { status: 400 });
   }
 
-  // Converter foto para base64
-  const arrayBuffer = await foto.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const base64 = buffer.toString("base64");
-  const fotoUrl = `data:${foto.type};base64,${base64}`;
+  // Foto não é mais capturada pelo usuário
+  const fotoUrl: string | null = null;
 
   try {
     await criarLavagem(params.id!, descricao, precoNum, fotoUrl, dataLavagem);
@@ -129,11 +121,6 @@ export default function FuncionarioPublico() {
       setIsModalOpen(false);
       // Limpar campos
       setPrecoFormatado("");
-      setPreviewFoto(null);
-      setFotoSelecionada(false);
-      if (fotoInputRef.current) {
-        fotoInputRef.current.value = "";
-      }
       // Resetar o ref apenas quando estiver completamente idle
       if (navigation.state === "idle") {
         wasSubmittingRef.current = false;
@@ -161,12 +148,8 @@ export default function FuncionarioPublico() {
   // Data padrão: hoje
   const hoje = new Date().toISOString().split("T")[0];
 
-  const fotoInputRef = useRef<HTMLInputElement>(null);
-  const [fotoSelecionada, setFotoSelecionada] = useState(false);
-  const [previewFoto, setPreviewFoto] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const wasSubmittingRef = useRef(false);
-  const [fotosCarregadas, setFotosCarregadas] = useState<Record<string, string>>({});
 
   // Função para navegar entre semanas
   const navegarSemana = (novoOffset: number) => {
@@ -216,117 +199,6 @@ export default function FuncionarioPublico() {
     const formatado = formatarMoeda(valor);
     setPrecoFormatado(formatado);
   };
-
-  // Forçar abertura da câmera quando o botão for clicado
-  const handleFotoClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-
-    // Tentar usar a API de mídia para forçar abertura da câmera
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-
-      // Se conseguir acessar a câmera, parar o stream e abrir o input
-      stream.getTracks().forEach((track) => track.stop());
-
-      // Abrir o seletor de arquivo que agora deve priorizar a câmera
-      if (fotoInputRef.current) {
-        fotoInputRef.current.click();
-      }
-    } catch (error) {
-      // Se falhar (sem permissão ou não suportado), apenas abrir o input normalmente
-      // O atributo capture já deve funcionar em dispositivos móveis
-      if (fotoInputRef.current) {
-        fotoInputRef.current.click();
-      }
-    }
-  };
-
-  // Componente para carregar foto sob demanda
-  function FotoLazy({
-    lavagemId,
-    funcionarioId,
-    fotoCarregada,
-    onFotoCarregada,
-  }: {
-    lavagemId: string;
-    funcionarioId: string;
-    fotoCarregada?: string;
-    onFotoCarregada: (url: string) => void;
-  }) {
-    const [isLoading, setIsLoading] = useState(!fotoCarregada);
-    const [error, setError] = useState(false);
-
-    useEffect(() => {
-      if (fotoCarregada) return;
-
-      // Carregar foto sob demanda
-      fetch(`/funcionario/publico/${funcionarioId}/foto/${lavagemId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.foto_url) {
-            onFotoCarregada(data.foto_url);
-            setIsLoading(false);
-          } else {
-            setError(true);
-            setIsLoading(false);
-          }
-        })
-        .catch(() => {
-          setError(true);
-          setIsLoading(false);
-        });
-    }, [lavagemId, funcionarioId, fotoCarregada, onFotoCarregada]);
-
-    if (error) {
-      return (
-        <div className="w-12 h-12 rounded bg-slate-700 border border-slate-700 shrink-0 flex items-center justify-center">
-          <svg
-            className="w-6 h-6 text-slate-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </div>
-      );
-    }
-
-    if (isLoading || !fotoCarregada) {
-      return (
-        <div className="w-12 h-12 rounded bg-slate-700 border border-slate-700 shrink-0 flex items-center justify-center animate-pulse">
-          <svg
-            className="w-6 h-6 text-slate-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </div>
-      );
-    }
-
-    return (
-      <img
-        src={fotoCarregada}
-        alt="Lavagem"
-        className="w-12 h-12 rounded object-cover border border-slate-700 shrink-0"
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -545,11 +417,6 @@ export default function FuncionarioPublico() {
                   onClick={() => {
                     setIsModalOpen(false);
                     setPrecoFormatado("");
-                    setPreviewFoto(null);
-                    setFotoSelecionada(false);
-                    if (fotoInputRef.current) {
-                      fotoInputRef.current.value = "";
-                    }
                   }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-700 transition-colors"
                 >
@@ -647,150 +514,12 @@ export default function FuncionarioPublico() {
                     </div>
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="foto"
-                      className="block text-xs font-medium text-slate-300 mb-1"
-                    >
-                      Foto *
-                    </label>
-                    <div className="relative">
-                      <input
-                        ref={fotoInputRef}
-                        type="file"
-                        id="foto"
-                        name="foto"
-                        accept="image/*"
-                        capture="environment"
-                        required
-                        className="input-field text-xs file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-medium file:bg-indigo-600 file:text-white hover:file:bg-indigo-700"
-                        style={{ display: "none" }}
-                        onChange={(e) => {
-                          // Garantir que o arquivo foi selecionado
-                          if (e.target.files && e.target.files.length > 0) {
-                            setFotoSelecionada(true);
-                            // Criar preview da foto
-                            const file = e.target.files[0];
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setPreviewFoto(reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          } else {
-                            setFotoSelecionada(false);
-                            setPreviewFoto(null);
-                          }
-                        }}
-                      />
-                      {previewFoto ? (
-                        <div className="space-y-2">
-                          <div className="relative">
-                            <img
-                              src={previewFoto}
-                              alt="Preview da foto"
-                              className="w-full h-48 object-cover rounded-lg border border-slate-700"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPreviewFoto(null);
-                                setFotoSelecionada(false);
-                                if (fotoInputRef.current) {
-                                  fotoInputRef.current.value = "";
-                                }
-                              }}
-                              className="absolute top-2 right-2 w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center transition-colors"
-                              title="Remover foto"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleFotoClick}
-                            className="w-full btn-secondary flex items-center justify-center gap-2"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                            </svg>
-                            Tirar Outra Foto
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleFotoClick}
-                          className="w-full btn-primary flex items-center justify-center gap-2"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                          </svg>
-                          Abrir Câmera
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {previewFoto
-                        ? "Foto capturada com sucesso!"
-                        : "Tire uma foto do veículo lavado"}
-                    </p>
-                  </div>
-
                   <div className="flex gap-2 pt-3 border-t border-slate-700">
                     <button
                       type="button"
                       onClick={() => {
                         setIsModalOpen(false);
                         setPrecoFormatado("");
-                        setPreviewFoto(null);
-                        setFotoSelecionada(false);
-                        if (fotoInputRef.current) {
-                          fotoInputRef.current.value = "";
-                        }
                       }}
                       className="btn-secondary flex-1"
                     >
@@ -798,7 +527,7 @@ export default function FuncionarioPublico() {
                     </button>
                     <button
                       type="submit"
-                      disabled={isSubmitting || !previewFoto}
+                      disabled={isSubmitting}
                       className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? "Registrando..." : "Registrar Lavagem"}
@@ -841,43 +570,28 @@ export default function FuncionarioPublico() {
                   key={lavagem.id}
                   className="border border-slate-700 rounded-lg p-2.5 hover:bg-slate-800/50 transition-colors"
                 >
-                  <div className="flex gap-2">
-                    {lavagem.tem_foto && (
-                      <FotoLazy
-                        lavagemId={lavagem.id}
-                        funcionarioId={funcionario.id}
-                        fotoCarregada={fotosCarregadas[lavagem.id]}
-                        onFotoCarregada={(url) => {
-                          setFotosCarregadas((prev) => ({
-                            ...prev,
-                            [lavagem.id]: url,
-                          }));
-                        }}
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-100 text-sm truncate">
-                        {lavagem.descricao}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-100 text-sm truncate">
+                      {lavagem.descricao}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {new Date(lavagem.data_lavagem).toLocaleDateString(
+                        "pt-BR"
+                      )}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs font-semibold text-slate-200">
+                        R$ {lavagem.preco.toFixed(2).replace(".", ",")}
                       </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {new Date(lavagem.data_lavagem).toLocaleDateString(
-                          "pt-BR"
-                        )}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs font-semibold text-slate-200">
-                          R$ {lavagem.preco.toFixed(2).replace(".", ",")}
-                        </p>
-                        <span className="text-xs text-emerald-400">
-                          • Comissão: R${" "}
-                          {(
-                            (lavagem.preco * (comissao.porcentagem || 40)) /
-                            100
-                          )
-                            .toFixed(2)
-                            .replace(".", ",")}
-                        </span>
-                      </div>
+                      <span className="text-xs text-emerald-400">
+                        • Comissão: R${" "}
+                        {(
+                          (lavagem.preco * (comissao.porcentagem || 40)) /
+                          100
+                        )
+                          .toFixed(2)
+                          .replace(".", ",")}
+                      </span>
                     </div>
                   </div>
                 </div>
