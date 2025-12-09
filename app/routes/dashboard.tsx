@@ -1,5 +1,5 @@
 import { json, redirect } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { requererUsuario } from "~/utils/session.server";
 import {
@@ -18,6 +18,12 @@ import {
 } from "~/utils/despesas.server";
 import { Form } from "@remix-run/react";
 import { useState } from "react";
+import { pageTitle } from "~/utils/meta";
+
+export const meta: MetaFunction = () => [
+  { title: pageTitle("Dashboard") },
+  { name: "description", content: "Painel administrativo - X Lava Jato" },
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requererUsuario(request);

@@ -1,7 +1,16 @@
 import { json } from "@remix-run/node";
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
 import { listarFuncionarios } from "~/utils/funcionarios.server";
+import { pageTitle } from "~/utils/meta";
+
+export const meta: MetaFunction = () => [
+  { title: pageTitle("Funcionários - área pública") },
+  {
+    name: "description",
+    content: "Selecione seu nome para registrar lavagens - X Lava Jato",
+  },
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const funcionarios = await listarFuncionarios();

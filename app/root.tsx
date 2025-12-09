@@ -5,8 +5,9 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/node";
+import type { LinksFunction, MetaFunction } from "@remix-run/node";
 import stylesheet from "./tailwind.css?url";
+import { pageTitle } from "./utils/meta";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
@@ -20,6 +21,11 @@ export const links: LinksFunction = () => [
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap",
   },
+];
+
+export const meta: MetaFunction = () => [
+  { title: pageTitle() },
+  { name: "description", content: "Gestão de lava jato - X Lava Jato" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

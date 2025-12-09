@@ -1,5 +1,5 @@
 import { json, redirect } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import {
   Form,
   useActionData,
@@ -16,6 +16,19 @@ import {
   obterInfoSemana,
 } from "~/utils/lavagens.server";
 import { useRef, useState, useEffect } from "react";
+import { pageTitle } from "~/utils/meta";
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  const nome = data?.funcionario?.nome;
+  const titulo = nome ? `Funcionário ${nome}` : "Funcionário";
+  return [
+    { title: pageTitle(titulo) },
+    {
+      name: "description",
+      content: "Registrar lavagens e ver totais - X Lava Jato",
+    },
+  ];
+};
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const funcionario = await buscarFuncionarioPorId(params.id!);

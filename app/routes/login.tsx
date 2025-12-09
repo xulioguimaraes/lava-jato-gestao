@@ -1,8 +1,14 @@
 import { json, redirect } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
 import { verificarLogin } from "~/utils/auth.server";
 import { criarSessaoUsuario, obterUsuario } from "~/utils/session.server";
+import { pageTitle } from "~/utils/meta";
+
+export const meta: MetaFunction = () => [
+  { title: pageTitle("Login") },
+  { name: "description", content: "Acesse o painel - X Lava Jato" },
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const usuario = await obterUsuario(request);
