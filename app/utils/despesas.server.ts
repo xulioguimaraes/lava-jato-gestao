@@ -86,7 +86,7 @@ export async function listarDespesasSemana(offsetSemana: number = 0): Promise<De
   
   const result = await db.execute({
     sql: `
-      SELECT id, descricao, valor, foto_url, data_despesa, observacoes, created_at
+      SELECT id, descricao, valor, NULL as foto_url, data_despesa, observacoes, created_at
       FROM despesas
       WHERE data_despesa >= ? AND data_despesa <= ?
       ORDER BY data_despesa DESC, created_at DESC
@@ -101,7 +101,7 @@ export async function listarDespesasSemana(offsetSemana: number = 0): Promise<De
     id: row.id as string,
     descricao: row.descricao as string,
     valor: row.valor as number,
-    foto_url: (row.foto_url as string) || null,
+    foto_url: null,
     data_despesa: row.data_despesa as string,
     observacoes: (row.observacoes as string) || null,
     created_at: row.created_at as string,

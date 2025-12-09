@@ -49,7 +49,7 @@ export async function listarLavagensSemana(offsetSemana: number = 0): Promise<La
         l.funcionario_id,
         l.descricao,
         l.preco,
-        l.foto_url,
+        (CASE WHEN l.foto_url IS NOT NULL THEN 1 ELSE 0 END) as tem_foto,
         l.data_lavagem,
         l.created_at,
         f.nome as funcionario_nome
@@ -69,7 +69,8 @@ export async function listarLavagensSemana(offsetSemana: number = 0): Promise<La
     funcionario_id: row.funcionario_id as string,
     descricao: row.descricao as string,
     preco: row.preco as number,
-    foto_url: (row.foto_url as string) || null,
+    foto_url: null,
+    tem_foto: !!row.tem_foto,
     data_lavagem: row.data_lavagem as string,
     created_at: row.created_at as string,
     funcionario_nome: row.funcionario_nome as string,

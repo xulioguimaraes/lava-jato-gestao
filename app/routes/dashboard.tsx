@@ -431,20 +431,12 @@ export default function Dashboard() {
                       className="p-3 hover:bg-slate-800/50 transition-colors flex items-start justify-between group"
                     >
                       <div className="flex gap-3">
-                        <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shrink-0 text-slate-400 border border-slate-600 overflow-hidden">
-                          {lavagem.foto_url ? (
-                            <img
-                              src={lavagem.foto_url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-xs font-bold text-slate-500">
-                              {lavagem.funcionario_nome
-                                .substring(0, 2)
-                                .toUpperCase()}
-                            </span>
-                          )}
+                        <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shrink-0 text-slate-500 border border-slate-600">
+                          <span className="text-xs font-bold">
+                            {lavagem.funcionario_nome
+                              .substring(0, 2)
+                              .toUpperCase()}
+                          </span>
                         </div>
                         <div>
                           <p className="text-sm font-medium text-slate-100">
@@ -641,13 +633,6 @@ export default function Dashboard() {
                       ) : (
                         <>
                           <div className="flex gap-3">
-                            {despesa.foto_url && (
-                              <img
-                                src={despesa.foto_url}
-                                alt={despesa.descricao}
-                                className="w-12 h-12 rounded object-cover border border-slate-700 shrink-0"
-                              />
-                            )}
                             <div className="flex-1 flex justify-between items-start">
                               <div>
                                 <p className="text-sm font-medium text-slate-100">
