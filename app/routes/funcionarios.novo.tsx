@@ -16,13 +16,31 @@ export async function action({ request }: ActionFunctionArgs) {
   const nome = formData.get("nome") as string;
   const email = formData.get("email") as string;
   const telefone = formData.get("telefone") as string;
+  const porcentagem = formData.get("porcentagem_comissao") as string | null;
 
   if (!nome) {
     return json({ erro: "Nome é obrigatório" }, { status: 400 });
   }
 
+  let porcentagemNum: number | undefined = 40;
+  if (porcentagem !== null && porcentagem !== "") {
+    const p = parseFloat(porcentagem);
+    if (Number.isNaN(p) || p < 0 || p > 100) {
+      return json(
+        { erro: "Porcentagem deve ser entre 0 e 100" },
+        { status: 400 }
+      );
+    }
+    porcentagemNum = p;
+  }
+
   try {
-    await criarFuncionario(nome, email || undefined, telefone || undefined);
+    await criarFuncionario(
+      nome,
+      email || undefined,
+      telefone || undefined,
+      porcentagemNum
+    );
     return redirect("/dashboard");
   } catch (error: any) {
     return json(
@@ -109,6 +127,32 @@ export default function NovoFuncionario() {
                   className="input-field"
                   placeholder="(00) 00000-0000"
                 />
+              </div>
+              <div>
+                <label
+                  htmlFor="porcentagem_comissao"
+                  className="block text-xs font-medium text-slate-300 mb-1"
+                >
+                  Porcentagem de Comissão (%)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    id="porcentagem_comissao"
+                    name="porcentagem_comissao"
+                    defaultValue={40}
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    className="input-field pr-10"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">
+                    %
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Padrão: 40%
+                </p>
               </div>
             </div>
 
