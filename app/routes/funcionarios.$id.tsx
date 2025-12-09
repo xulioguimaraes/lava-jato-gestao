@@ -14,8 +14,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Funcionário não encontrado", { status: 404 });
   }
 
+  // Não trazer fotos para evitar payload grande
   const [lavagens, comissao] = await Promise.all([
-    listarLavagensPorFuncionario(funcionario.id),
+    listarLavagensPorFuncionario(funcionario.id, 0, false),
     calcularComissaoFuncionario(funcionario.id),
   ]);
 
@@ -396,13 +397,6 @@ export default function FuncionarioDetalhes() {
                           </p>
                         </div>
                       </div>
-                      {lavagem.foto_url && (
-                        <img
-                          src={lavagem.foto_url}
-                          alt={lavagem.descricao}
-                          className="mt-2 rounded-md w-full max-w-xs h-24 object-cover border border-slate-700"
-                        />
-                      )}
                       <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700">
                         <button
                           onClick={() => setEditingLavagemId(lavagem.id)}

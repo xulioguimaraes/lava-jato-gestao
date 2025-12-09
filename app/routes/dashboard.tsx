@@ -7,6 +7,8 @@ import {
   calcularTotalSemana,
   obterInfoSemana,
 } from "~/utils/lavagens.server";
+import { formatDatePtBr } from "~/utils/date";
+import { ResumoSemanal } from "~/components/ResumoSemanal";
 import { listarFuncionarios } from "~/utils/funcionarios.server";
 import { fazerLogout } from "~/utils/session.server";
 import {
@@ -448,9 +450,7 @@ export default function Dashboard() {
                               {lavagem.funcionario_nome}
                             </span>{" "}
                             •{" "}
-                            {new Date(lavagem.data_lavagem).toLocaleDateString(
-                              "pt-BR"
-                            )}
+                            {formatDatePtBr(lavagem.data_lavagem)}
                           </p>
                         </div>
                       </div>
@@ -639,9 +639,7 @@ export default function Dashboard() {
                                   {despesa.descricao}
                                 </p>
                                 <span className="text-xs text-slate-500 mt-0.5 block">
-                                  {new Date(
-                                    despesa.data_despesa
-                                  ).toLocaleDateString("pt-BR")}
+                                  {formatDatePtBr(despesa.data_despesa)}
                                 </span>
                                 {despesa.observacoes && (
                                   <span className="text-xs text-slate-400 mt-0.5 block">
@@ -811,6 +809,12 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-1">
+            <ResumoSemanal lavagens={lavagens} />
           </div>
         </div>
       </div>

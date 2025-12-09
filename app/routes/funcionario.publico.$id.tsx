@@ -17,6 +17,7 @@ import {
 } from "~/utils/lavagens.server";
 import { useRef, useState, useEffect } from "react";
 import { pageTitle } from "~/utils/meta";
+import { formatDatePtBr } from "~/utils/date";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const nome = data?.funcionario?.nome;
@@ -575,9 +576,7 @@ export default function FuncionarioPublico() {
                       {lavagem.descricao}
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      {new Date(lavagem.data_lavagem).toLocaleDateString(
-                        "pt-BR"
-                      )}
+                      {formatDatePtBr(lavagem.data_lavagem)}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <p className="text-xs font-semibold text-slate-200">
