@@ -43,8 +43,12 @@ export async function action({ request }: ActionFunctionArgs) {
     );
     return redirect("/dashboard");
   } catch (error: any) {
+    console.error("Erro ao criar funcionário (server):", error);
     return json(
-      { erro: "Erro ao criar funcionário. Tente novamente.", error: error },
+      {
+        erro: "Erro ao criar funcionário. Tente novamente.",
+        message: error?.message ?? "erro desconhecido",
+      },
       { status: 500 }
     );
   }
