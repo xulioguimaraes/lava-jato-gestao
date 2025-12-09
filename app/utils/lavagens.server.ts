@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { db } from "~/db/turso.server";
 
 export interface Lavagem {
@@ -120,7 +121,7 @@ export async function criarLavagem(
   fotoUrl: string | null,
   dataLavagem: string
 ): Promise<Lavagem> {
-  const id = crypto.randomUUID();
+  const id = randomUUID();
 
   await db.execute({
     sql: `

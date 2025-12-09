@@ -88,8 +88,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
       : `/funcionario/publico/${params.id}?sucesso=1`;
     return redirect(redirectUrl);
   } catch (error) {
+    console.error("Erro ao registrar lavagem", error);
     return json(
-      { erro: "Erro ao registrar lavagem. Tente novamente." },
+      {
+        erro: "Erro ao registrar lavagem. Tente novamente.",
+        message: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
