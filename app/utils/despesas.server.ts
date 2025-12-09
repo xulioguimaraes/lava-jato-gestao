@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { db } from "~/db/turso.server";
 
 // Função para garantir que a tabela de despesas existe
@@ -156,7 +157,7 @@ export async function criarDespesa(
   observacoes: string | null
 ): Promise<Despesa> {
   await garantirTabelaDespesas();
-  const id = crypto.randomUUID();
+  const id = randomUUID();
 
   await db.execute({
     sql: `
