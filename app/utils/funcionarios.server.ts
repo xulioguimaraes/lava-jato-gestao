@@ -66,10 +66,24 @@ export async function criarFuncionario(
 ): Promise<Funcionario> {
   const id = crypto.randomUUID();
 
-  await db.execute({
-    sql: "INSERT INTO funcionarios (id, nome, email, telefone, porcentagem_comissao) VALUES (?, ?, ?, ?, ?)",
-    args: [id, nome, email || null, telefone || null, porcentagemComissao],
-  });
+  try {
+    // Tentativa com coluna porcentagem_comissao (schema atual)
+    await db.execute({
+      sql: "INSERT INTO funcionarios (id, nome, email, telefone, porcentagem_comissao) VALUES (?, ?, ?, ?, ?)",
+      args: [id, nome, email || null, telefone || null, porcentagemComissao],
+    });
+  } catch (error: any) {
+    const msg = (error?.message || "").toLowerCase();
+    // Se a coluna ainda não existe no ambiente (ex.: produção sem migration), faz fallback
+    if (msg.includes("porcentagem_comissao") || msg.includes("no such column")) {
+      await db.execute({
+        sql: "INSERT INTO funcionarios (id, nome, email, telefone) VALUES (?, ?, ?, ?)",
+        args: [id, nome, email || null, telefone || null],
+      });
+    } else {
+      throw error;
+    }
+  }
 
   return buscarFuncionarioPorId(id) as Promise<Funcionario>;
 }
