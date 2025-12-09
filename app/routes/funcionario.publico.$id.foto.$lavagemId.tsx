@@ -28,3 +28,8 @@ export async function loader({ params }: LoaderFunctionArgs) {
   return json({ foto_url: fotoUrl });
 }
 
+// Componente vazio já que esta rota só retorna JSON
+export default function FotoLoader() {
+  return null;
+}
+

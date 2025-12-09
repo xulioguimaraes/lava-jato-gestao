@@ -5,6 +5,7 @@
 
 [functions]
   included_files = ["build/**"]
+  node_bundler = "esbuild"
 
 [[redirects]]
   from = "/*"
@@ -13,6 +14,7 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  NPM_FLAGS = "--legacy-peer-deps"
 
 [[headers]]
   for = "/*"
