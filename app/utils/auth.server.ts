@@ -79,3 +79,23 @@ export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
   };
 }
 
+export async function buscarUsuarioPorSlug(slug: string): Promise<Usuario | null> {
+  const result = await db.execute({
+    sql: "SELECT id, email, nome, slug, nome_negocio FROM usuarios WHERE slug = ?",
+    args: [slug],
+  });
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  const usuario = result.rows[0];
+  return {
+    id: usuario.id as string,
+    email: usuario.email as string,
+    nome: usuario.nome as string,
+    nome_negocio: (usuario.nome_negocio as string) || null,
+    slug: (usuario.slug as string) || null,
+  };
+}
+

@@ -37,7 +37,7 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requererUsuario(request);
+  const usuario = await requererUsuario(request);
 
   // Obter offset da semana da query string (0 = semana atual, 1 = semana anterior, etc.)
   const url = new URL(request.url);
@@ -45,11 +45,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const [lavagens, totais, funcionarios, despesas, totalDespesas, infoSemana] =
     await Promise.all([
-      listarLavagensSemana(offsetSemana),
-      calcularTotalSemana(offsetSemana),
-      listarFuncionarios(),
-      listarDespesasSemana(offsetSemana),
-      calcularTotalDespesasSemana(offsetSemana),
+      listarLavagensSemana(offsetSemana, usuario.id),
+      calcularTotalSemana(offsetSemana, usuario.id),
+      listarFuncionarios(usuario.id),
+      listarDespesasSemana(offsetSemana, usuario.id),
+      calcularTotalDespesasSemana(offsetSemana, usuario.id),
       Promise.resolve(obterInfoSemana(offsetSemana)),
     ]);
 
@@ -72,6 +72,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     totalComissoes,
     offsetSemana,
     infoSemana,
+    usuarioSlug: usuario.slug,
   });
 }
 
@@ -152,6 +153,7 @@ export default function Dashboard() {
     totalComissoes,
     offsetSemana,
     infoSemana,
+    usuarioSlug,
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [editingDespesaId, setEditingDespesaId] = useState<string | null>(null);
@@ -210,7 +212,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <Link
-                to="/funcionarios/publico"
+                to={`/${usuarioSlug || "publico"}`}
                 className="text-xs font-medium text-indigo-400 hover:text-indigo-300 px-2 py-1 rounded-md border border-indigo-500/40 hover:border-indigo-400 transition-colors"
               >
                 Página Pública

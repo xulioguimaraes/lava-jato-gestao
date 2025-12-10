@@ -1,6 +1,42 @@
 import { randomUUID } from "crypto";
 import { db } from "~/db/turso.server";
 
+async function ensureUserIdColumn() {
+  try {
+    const info = await db.execute({
+      sql: `PRAGMA table_info(lavagens);`,
+      args: [],
+    });
+    const hasUserId = info.rows.some((row: any) => row.name === "user_id");
+    if (!hasUserId) {
+      await db.execute({
+        sql: `ALTER TABLE lavagens ADD COLUMN user_id TEXT;`,
+        args: [],
+      });
+    }
+  } catch {
+    // Ignorar se já existir ou não for possível alterar no ambiente atual
+  }
+}
+
+async function ensureUserIdColumnFuncionarios() {
+  try {
+    const info = await db.execute({
+      sql: `PRAGMA table_info(funcionarios);`,
+      args: [],
+    });
+    const hasUserId = info.rows.some((row: any) => row.name === "user_id");
+    if (!hasUserId) {
+      await db.execute({
+        sql: `ALTER TABLE funcionarios ADD COLUMN user_id TEXT;`,
+        args: [],
+      });
+    }
+  } catch {
+    // Ignorar se já existir ou não for possível alterar no ambiente atual
+  }
+}
+
 export interface Lavagem {
   id: string;
   funcionario_id: string;
@@ -11,6 +47,7 @@ export interface Lavagem {
   data_lavagem: string;
   created_at: string;
   forma_pagamento: string | null;
+  user_id?: string | null;
 }
 
 export interface LavagemComFuncionario extends Lavagem {
@@ -41,9 +78,18 @@ function obterSemanaAtual() {
 }
 
 export async function listarLavagensSemana(
-  offsetSemana: number = 0
+  offsetSemana: number = 0,
+  userId?: string
 ): Promise<LavagemComFuncionario[]> {
+  await ensureUserIdColumn();
   const { inicio, fim } = obterSemana(offsetSemana);
+
+  const filtroUser = userId ? " AND (l.user_id = ? OR l.user_id IS NULL)" : "";
+  const args: (string | number)[] = [
+    inicio.toISOString().split("T")[0],
+    fim.toISOString().split("T")[0],
+  ];
+  if (userId) args.push(userId);
 
   const result = await db.execute({
     sql: `
@@ -56,13 +102,14 @@ export async function listarLavagensSemana(
         l.data_lavagem,
         l.created_at,
         l.forma_pagamento,
+        l.user_id,
         f.nome as funcionario_nome
       FROM lavagens l
       INNER JOIN funcionarios f ON l.funcionario_id = f.id
-      WHERE l.data_lavagem >= ? AND l.data_lavagem <= ?
+      WHERE l.data_lavagem >= ? AND l.data_lavagem <= ?${filtroUser}
       ORDER BY l.data_lavagem DESC, l.created_at DESC
     `,
-    args: [inicio.toISOString().split("T")[0], fim.toISOString().split("T")[0]],
+    args,
   });
 
   return result.rows.map((row) => ({
@@ -75,11 +122,17 @@ export async function listarLavagensSemana(
     data_lavagem: row.data_lavagem as string,
     created_at: row.created_at as string,
     forma_pagamento: (row.forma_pagamento as string) || null,
+    user_id: (row.user_id as string) || null,
     funcionario_nome: row.funcionario_nome as string,
   }));
 }
 
-export async function listarTodasLavagens(): Promise<LavagemComFuncionario[]> {
+export async function listarTodasLavagens(
+  userId?: string
+): Promise<LavagemComFuncionario[]> {
+  await ensureUserIdColumn();
+  const filtroUser = userId ? " WHERE (l.user_id = ? OR l.user_id IS NULL)" : "";
+  const args = userId ? [userId] : [];
   const result = await db.execute({
     sql: `
       SELECT 
@@ -90,12 +143,14 @@ export async function listarTodasLavagens(): Promise<LavagemComFuncionario[]> {
         (CASE WHEN l.foto_url IS NOT NULL THEN 1 ELSE 0 END) as tem_foto,
         l.data_lavagem,
         l.created_at,
+        l.user_id,
         f.nome as funcionario_nome
       FROM lavagens l
       INNER JOIN funcionarios f ON l.funcionario_id = f.id
+      ${filtroUser}
       ORDER BY l.data_lavagem DESC, l.created_at DESC
     `,
-    args: [],
+    args,
   });
 
   return result.rows.map((row) => ({
@@ -108,6 +163,7 @@ export async function listarTodasLavagens(): Promise<LavagemComFuncionario[]> {
     data_lavagem: row.data_lavagem as string,
     created_at: row.created_at as string,
     forma_pagamento: (row.forma_pagamento as string) || null,
+    user_id: (row.user_id as string) || null,
     funcionario_nome: row.funcionario_nome as string,
   }));
 }
@@ -115,22 +171,28 @@ export async function listarTodasLavagens(): Promise<LavagemComFuncionario[]> {
 export async function listarLavagensPorFuncionario(
   funcionarioId: string,
   offsetSemana: number = 0,
-  incluirFotos: boolean = true
+  incluirFotos: boolean = true,
+  userId?: string
 ): Promise<Lavagem[]> {
+  await ensureUserIdColumn();
   const { inicio, fim } = obterSemana(offsetSemana);
+
+  const filtroUser = userId ? " AND (user_id = ? OR user_id IS NULL)" : "";
+  const args: (string | number)[] = [
+    funcionarioId,
+    inicio.toISOString().split("T")[0],
+    fim.toISOString().split("T")[0],
+  ];
+  if (userId) args.push(userId);
 
   const result = await db.execute({
     sql: `
-      SELECT id, funcionario_id, descricao, preco, foto_url, data_lavagem, created_at
+      SELECT id, funcionario_id, descricao, preco, foto_url, data_lavagem, created_at, user_id
       FROM lavagens
-      WHERE funcionario_id = ? AND data_lavagem >= ? AND data_lavagem <= ?
+      WHERE funcionario_id = ? AND data_lavagem >= ? AND data_lavagem <= ?${filtroUser}
       ORDER BY data_lavagem DESC, created_at DESC
     `,
-    args: [
-      funcionarioId,
-      inicio.toISOString().split("T")[0],
-      fim.toISOString().split("T")[0],
-    ],
+    args,
   });
 
   return result.rows.map((row) => {
@@ -147,6 +209,7 @@ export async function listarLavagensPorFuncionario(
       data_lavagem: row.data_lavagem as string,
       created_at: row.created_at as string,
       forma_pagamento: (row.forma_pagamento as string) || null,
+      user_id: (row.user_id as string) || null,
     };
   });
 }
@@ -157,14 +220,16 @@ export async function criarLavagem(
   preco: number,
   fotoUrl: string | null,
   dataLavagem: string,
-  formaPagamento: string | null
+  formaPagamento: string | null,
+  userId?: string
 ): Promise<Lavagem> {
+  await ensureUserIdColumn();
   const id = randomUUID();
 
   await db.execute({
     sql: `
-      INSERT INTO lavagens (id, funcionario_id, descricao, preco, foto_url, data_lavagem, forma_pagamento)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO lavagens (id, funcionario_id, descricao, preco, foto_url, data_lavagem, forma_pagamento, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
     args: [
       id,
@@ -174,6 +239,7 @@ export async function criarLavagem(
       fotoUrl,
       dataLavagem,
       formaPagamento,
+      userId || null,
     ],
   });
 
@@ -192,10 +258,14 @@ export async function criarLavagem(
     data_lavagem: row.data_lavagem as string,
     created_at: row.created_at as string,
     forma_pagamento: (row.forma_pagamento as string) || null,
+    user_id: (row.user_id as string) || null,
   };
 }
 
-export async function calcularTotalSemana(offsetSemana: number = 0): Promise<{
+export async function calcularTotalSemana(
+  offsetSemana: number = 0,
+  userId?: string
+): Promise<{
   total: number;
   porFuncionario: {
     funcionario_id: string;
@@ -203,7 +273,15 @@ export async function calcularTotalSemana(offsetSemana: number = 0): Promise<{
     total: number;
   }[];
 }> {
+  await ensureUserIdColumn();
+  await ensureUserIdColumnFuncionarios();
   const { inicio, fim } = obterSemana(offsetSemana);
+
+  const args = [
+    inicio.toISOString().split("T")[0],
+    fim.toISOString().split("T")[0],
+  ];
+  const userIdArgs = userId ? [userId, userId] : [null, null];
 
   const result = await db.execute({
     sql: `
@@ -215,11 +293,13 @@ export async function calcularTotalSemana(offsetSemana: number = 0): Promise<{
       LEFT JOIN lavagens l ON f.id = l.funcionario_id 
         AND l.data_lavagem >= ? 
         AND l.data_lavagem <= ?
+        AND (l.user_id = ? OR l.user_id IS NULL)
       WHERE f.ativo = 1
+        AND (f.user_id = ? OR f.user_id IS NULL)
       GROUP BY f.id, f.nome
       ORDER BY total DESC
     `,
-    args: [inicio.toISOString().split("T")[0], fim.toISOString().split("T")[0]],
+    args: [...args, ...userIdArgs],
   });
 
   const porFuncionario = result.rows.map((row) => ({
@@ -235,11 +315,14 @@ export async function calcularTotalSemana(offsetSemana: number = 0): Promise<{
 
 export async function calcularComissaoFuncionario(
   funcionarioId: string,
-  offsetSemana: number = 0
+  offsetSemana: number = 0,
+  userId?: string
 ): Promise<{ total: number; comissao: number; porcentagem: number }> {
   const lavagens = await listarLavagensPorFuncionario(
     funcionarioId,
-    offsetSemana
+    offsetSemana,
+    true,
+    userId
   );
   const total = lavagens.reduce((sum, l) => sum + l.preco, 0);
 

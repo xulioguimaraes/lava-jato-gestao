@@ -21,16 +21,26 @@ async function garantirTabelaDespesas() {
           foto_url TEXT,
           data_despesa DATE NOT NULL,
           observacoes TEXT,
+          user_id TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         `,
         args: [],
       });
     } else {
-      // Tabela existe, verificar e adicionar coluna foto_url se não existir
+      // Tabela existe, verificar e adicionar colunas se não existirem
       try {
         await db.execute({
           sql: `ALTER TABLE despesas ADD COLUMN foto_url TEXT`,
+          args: [],
+        });
+      } catch (error) {
+        // Ignora se a coluna já existir
+      }
+
+      try {
+        await db.execute({
+          sql: `ALTER TABLE despesas ADD COLUMN user_id TEXT`,
           args: [],
         });
       } catch (error) {
@@ -55,6 +65,7 @@ export interface Despesa {
   foto_url: string | null;
   data_despesa: string;
   observacoes: string | null;
+  user_id?: string | null;
   created_at: string;
 }
 
@@ -81,21 +92,28 @@ function obterSemanaAtual() {
   return obterSemana(0);
 }
 
-export async function listarDespesasSemana(offsetSemana: number = 0): Promise<Despesa[]> {
+export async function listarDespesasSemana(
+  offsetSemana: number = 0,
+  userId?: string
+): Promise<Despesa[]> {
   await garantirTabelaDespesas();
   const { inicio, fim } = obterSemana(offsetSemana);
-  
+
+  const filtroUser = userId ? " AND (user_id = ? OR user_id IS NULL)" : "";
+  const args: (string | number)[] = [
+    inicio.toISOString().split("T")[0],
+    fim.toISOString().split("T")[0],
+  ];
+  if (userId) args.push(userId);
+
   const result = await db.execute({
     sql: `
-      SELECT id, descricao, valor, NULL as foto_url, data_despesa, observacoes, created_at
+      SELECT id, descricao, valor, NULL as foto_url, data_despesa, observacoes, user_id, created_at
       FROM despesas
-      WHERE data_despesa >= ? AND data_despesa <= ?
+      WHERE data_despesa >= ? AND data_despesa <= ?${filtroUser}
       ORDER BY data_despesa DESC, created_at DESC
     `,
-    args: [
-      inicio.toISOString().split("T")[0],
-      fim.toISOString().split("T")[0],
-    ],
+    args,
   });
 
   return result.rows.map((row) => ({
@@ -105,19 +123,22 @@ export async function listarDespesasSemana(offsetSemana: number = 0): Promise<De
     foto_url: null,
     data_despesa: row.data_despesa as string,
     observacoes: (row.observacoes as string) || null,
+    user_id: (row.user_id as string) || null,
     created_at: row.created_at as string,
   }));
 }
 
-export async function listarTodasDespesas(): Promise<Despesa[]> {
+export async function listarTodasDespesas(userId?: string): Promise<Despesa[]> {
   await garantirTabelaDespesas();
+  const filtroUser = userId ? " WHERE (user_id = ? OR user_id IS NULL)" : "";
+  const args = userId ? [userId] : [];
   const result = await db.execute({
     sql: `
-      SELECT id, descricao, valor, foto_url, data_despesa, observacoes, created_at
-      FROM despesas
+      SELECT id, descricao, valor, foto_url, data_despesa, observacoes, user_id, created_at
+      FROM despesas${filtroUser}
       ORDER BY data_despesa DESC, created_at DESC
     `,
-    args: [],
+    args,
   });
 
   return result.rows.map((row) => ({
@@ -127,23 +148,29 @@ export async function listarTodasDespesas(): Promise<Despesa[]> {
     foto_url: (row.foto_url as string) || null,
     data_despesa: row.data_despesa as string,
     observacoes: (row.observacoes as string) || null,
+    user_id: (row.user_id as string) || null,
     created_at: row.created_at as string,
   }));
 }
 
-export async function calcularTotalDespesasSemana(offsetSemana: number = 0): Promise<number> {
+export async function calcularTotalDespesasSemana(
+  offsetSemana: number = 0,
+  userId?: string
+): Promise<number> {
   await garantirTabelaDespesas();
   const { inicio, fim } = obterSemana(offsetSemana);
-  
+  const filtroUser = userId ? " AND (user_id = ? OR user_id IS NULL)" : "";
+
   const result = await db.execute({
     sql: `
       SELECT COALESCE(SUM(valor), 0) as total
       FROM despesas
-      WHERE data_despesa >= ? AND data_despesa <= ?
+      WHERE data_despesa >= ? AND data_despesa <= ?${filtroUser}
     `,
     args: [
       inicio.toISOString().split("T")[0],
       fim.toISOString().split("T")[0],
+      ...(userId ? [userId] : []),
     ],
   });
 
@@ -154,17 +181,18 @@ export async function criarDespesa(
   descricao: string,
   valor: number,
   dataDespesa: string,
-  observacoes: string | null
+  observacoes: string | null,
+  userId: string
 ): Promise<Despesa> {
   await garantirTabelaDespesas();
   const id = randomUUID();
 
   await db.execute({
     sql: `
-      INSERT INTO despesas (id, descricao, valor, foto_url, data_despesa, observacoes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO despesas (id, descricao, valor, foto_url, data_despesa, observacoes, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
-    args: [id, descricao, valor, null, dataDespesa, observacoes],
+    args: [id, descricao, valor, null, dataDespesa, observacoes, userId],
   });
 
   const result = await db.execute({
@@ -180,6 +208,7 @@ export async function criarDespesa(
     foto_url: (row.foto_url as string) || null,
     data_despesa: row.data_despesa as string,
     observacoes: (row.observacoes as string) || null,
+    user_id: (row.user_id as string) || null,
     created_at: row.created_at as string,
   };
 }

@@ -10,11 +10,10 @@ export const meta: MetaFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const usuario = await obterUsuario(request);
-  
+
   if (usuario) {
     return redirect("/dashboard");
   }
-  
+
   return redirect("/login");
 }
-

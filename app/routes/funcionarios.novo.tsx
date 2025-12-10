@@ -10,7 +10,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requererUsuario(request);
+  const usuario = await requererUsuario(request);
 
   const formData = await request.formData();
   const nome = formData.get("nome") as string;
@@ -39,7 +39,8 @@ export async function action({ request }: ActionFunctionArgs) {
       nome,
       email || undefined,
       telefone || undefined,
-      porcentagemNum
+      porcentagemNum,
+      usuario.id
     );
     return redirect("/dashboard");
   } catch (error: any) {

@@ -41,14 +41,15 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   if (!funcionario) {
     throw new Response("Funcionário não encontrado", { status: 404 });
   }
+  const userId = funcionario.user_id || undefined;
 
   // Obter offset da semana da query string (0 = semana atual, 1 = semana anterior, etc.)
   const url = new URL(request.url);
   const offsetSemana = parseInt(url.searchParams.get("semana") || "0", 10) || 0;
 
   const [lavagens, comissao, infoSemana] = await Promise.all([
-    listarLavagensPorFuncionario(funcionario.id, offsetSemana, false), // false = não incluir fotos no loader
-    calcularComissaoFuncionario(funcionario.id, offsetSemana),
+    listarLavagensPorFuncionario(funcionario.id, offsetSemana, false, userId), // false = não incluir fotos no loader
+    calcularComissaoFuncionario(funcionario.id, offsetSemana, userId),
     Promise.resolve(obterInfoSemana(offsetSemana)),
   ]);
 
@@ -56,6 +57,12 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  const funcionario = await buscarFuncionarioPorId(params.id!);
+  if (!funcionario) {
+    return json({ erro: "Funcionário não encontrado" }, { status: 404 });
+  }
+  const userId = funcionario.user_id || undefined;
+
   const formData = await request.formData();
   const descricao = formData.get("descricao") as string;
   const preco = formData.get("preco") as string;
@@ -89,7 +96,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
       precoNum,
       fotoUrl,
       dataLavagem,
-      formaPagamentoValida
+      formaPagamentoValida,
+      userId
     );
     // Redirecionar mantendo o filtro de semana se existir e adicionando parâmetro de sucesso
     const url = new URL(request.url);
