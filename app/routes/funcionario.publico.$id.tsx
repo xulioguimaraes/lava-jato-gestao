@@ -18,6 +18,7 @@ import {
 import { useRef, useState, useEffect } from "react";
 import { pageTitle } from "~/utils/meta";
 import { formatDatePtBr } from "~/utils/date";
+import { Toast } from "~/components/Toast";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const nome = data?.funcionario?.nome;
@@ -55,6 +56,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const descricao = formData.get("descricao") as string;
   const preco = formData.get("preco") as string;
   const dataLavagem = formData.get("data_lavagem") as string;
+  const formaPagamento = formData.get("forma_pagamento") as string;
 
   if (!descricao || !preco || !dataLavagem) {
     return json(
@@ -71,8 +73,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // Foto não é mais capturada pelo usuário
   const fotoUrl: string | null = null;
 
+  const formasValidas = ["pix", "dinheiro"];
+  const formaPagamentoValida = formasValidas.includes(formaPagamento || "")
+    ? formaPagamento
+    : null;
+
   try {
-    await criarLavagem(params.id!, descricao, precoNum, fotoUrl, dataLavagem);
+    await criarLavagem(
+      params.id!,
+      descricao,
+      precoNum,
+      fotoUrl,
+      dataLavagem,
+      formaPagamentoValida
+    );
     // Redirecionar mantendo o filtro de semana se existir e adicionando parâmetro de sucesso
     const url = new URL(request.url);
     const semana = url.searchParams.get("semana");
@@ -205,63 +219,10 @@ export default function FuncionarioPublico() {
     <div className="min-h-screen bg-slate-900">
       {/* Toast de Sucesso */}
       {showToast && (
-        <div
-          className="fixed top-4 right-4 z-50 transition-all duration-300 ease-in-out"
-          style={{
-            animation: "slideIn 0.3s ease-out",
-          }}
-        >
-          <style>{`
-            @keyframes slideIn {
-              from {
-                transform: translateX(100%);
-                opacity: 0;
-              }
-              to {
-                transform: translateX(0);
-                opacity: 1;
-              }
-            }
-          `}</style>
-          <div className="bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]">
-            <svg
-              className="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-            <div className="flex-1">
-              <p className="font-medium text-sm">
-                Lavagem registrada com sucesso!
-              </p>
-            </div>
-            <button
-              onClick={() => setShowToast(false)}
-              className="text-emerald-100 hover:text-white transition-colors"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+        <Toast
+          message="Lavagem registrada com sucesso!"
+          onClose={() => setShowToast(false)}
+        />
       )}
 
       <header className="bg-slate-800 border-b border-slate-700">
@@ -494,6 +455,25 @@ export default function FuncionarioPublico() {
                           value={desformatarMoeda(precoFormatado)}
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="forma_pagamento"
+                        className="block text-xs font-medium text-slate-300 mb-1"
+                      >
+                        Forma de pagamento *
+                      </label>
+                      <select
+                        id="forma_pagamento"
+                        name="forma_pagamento"
+                        required
+                        className="input-field"
+                        defaultValue="pix"
+                      >
+                        <option value="pix">Pix</option>
+                        <option value="dinheiro">Dinheiro</option>
+                      </select>
                     </div>
 
                     <div>

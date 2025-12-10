@@ -117,6 +117,13 @@ export default function PerfilFuncionario() {
                             month: "long",
                             day: "numeric",
                           })}
+                          {lavagem.forma_pagamento && (
+                            <>
+                              {" "}
+                              • Forma:{" "}
+                              {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}
+                            </>
+                          )}
                         </p>
                       </div>
                       <div className="text-right">

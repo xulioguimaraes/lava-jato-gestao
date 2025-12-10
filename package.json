@@ -9,7 +9,7 @@
     "start": "remix-serve ./build/index.js",
     "typecheck": "tsc",
     "db:init": "tsx app/db/init.ts",
-    "db:migrate": "tsx app/db/migrate_porcentagem.ts"
+    "db:migrate": "tsx app/db/migrate_forma_pagamento.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",
