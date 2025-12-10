@@ -1,9 +1,14 @@
 import { json, redirect } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import type {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  MetaFunction,
+} from "@remix-run/node";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
 import { criarUsuario } from "~/utils/auth.server";
 import { criarSessaoUsuario, obterUsuario } from "~/utils/session.server";
 import { pageTitle } from "~/utils/meta";
+import { db } from "~/db/turso.server";
 
 export const meta: MetaFunction = () => [
   { title: pageTitle("Criar conta") },
@@ -23,8 +28,9 @@ export async function action({ request }: ActionFunctionArgs) {
   const email = formData.get("email") as string;
   const senha = formData.get("senha") as string;
   const nome = formData.get("nome") as string;
+  const nomeNegocio = formData.get("nome_negocio") as string;
 
-  if (!email || !senha || !nome) {
+  if (!email || !senha || !nome || !nomeNegocio) {
     return json({ erro: "Todos os campos são obrigatórios" }, { status: 400 });
   }
 
@@ -35,12 +41,52 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
+  const slugify = (input: string) => {
+    return input
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/-{2,}/g, "-");
+  };
+
+  const gerarSlugUnico = async (base: string) => {
+    const baseSlug = slugify(base) || "meu-negocio";
+    const like = `${baseSlug}%`;
+    const result = await db.execute({
+      sql: "SELECT slug FROM usuarios WHERE slug LIKE ?",
+      args: [like],
+    });
+    const existentes = new Set(
+      result.rows.map((r) => (r.slug as string)?.toLowerCase())
+    );
+    if (!existentes.has(baseSlug)) return baseSlug;
+    let contador = 2;
+    let candidato = `${baseSlug}-${contador}`;
+    while (existentes.has(candidato)) {
+      contador += 1;
+      candidato = `${baseSlug}-${contador}`;
+    }
+    return candidato;
+  };
+
   try {
-    const usuario = await criarUsuario(email, senha, nome);
+    const slug = await gerarSlugUnico(nomeNegocio);
+    const usuario = await criarUsuario(email, senha, nome, slug, nomeNegocio);
     return criarSessaoUsuario(usuario.id, "/dashboard");
   } catch (error: any) {
     if (error.message?.includes("UNIQUE constraint")) {
-      return json({ erro: "Este email já está cadastrado" }, { status: 400 });
+      const msg = error.message || "";
+      if (msg.includes("usuarios_email_key") || msg.includes("email")) {
+        return json({ erro: "Este email já está cadastrado" }, { status: 400 });
+      }
+      if (msg.includes("usuarios_slug") || msg.includes("slug")) {
+        return json(
+          { erro: "Nome do negócio já está em uso, tente outro." },
+          { status: 400 }
+        );
+      }
     }
     return json(
       { erro: "Erro ao criar conta. Tente novamente.", error: error },
@@ -93,6 +139,26 @@ export default function Registro() {
                 className="input-field"
                 placeholder="Seu nome"
               />
+            </div>
+            <div>
+              <label
+                htmlFor="nome_negocio"
+                className="block text-xs font-medium text-slate-300 mb-1"
+              >
+                Nome do negócio (slug)
+              </label>
+              <input
+                type="text"
+                id="nome_negocio"
+                name="nome_negocio"
+                required
+                className="input-field"
+                placeholder="Ex: Lava Jato Central"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Usaremos este nome para criar o link público. Se já existir,
+                vamos adicionar um número automaticamente.
+              </p>
             </div>
             <div>
               <label

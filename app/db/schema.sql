@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email TEXT UNIQUE NOT NULL,
   senha_hash TEXT NOT NULL,
   nome TEXT NOT NULL,
+  nome_negocio TEXT,
+  slug TEXT UNIQUE,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1,5 +1,9 @@
 import { json, redirect } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import type {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  MetaFunction,
+} from "@remix-run/node";
 import {
   Form,
   useActionData,
@@ -564,10 +568,7 @@ export default function FuncionarioPublico() {
                       </p>
                       <span className="text-xs text-emerald-400">
                         • Comissão: R${" "}
-                        {(
-                          (lavagem.preco * (comissao.porcentagem || 40)) /
-                          100
-                        )
+                        {((lavagem.preco * (comissao.porcentagem || 40)) / 100)
                           .toFixed(2)
                           .replace(".", ",")}
                       </span>

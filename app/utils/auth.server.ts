@@ -1,26 +1,31 @@
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { db } from "~/db/turso.server";
 
 export interface Usuario {
   id: string;
   email: string;
   nome: string;
+  nome_negocio?: string | null;
+  slug?: string | null;
 }
 
 export async function criarUsuario(
   email: string,
   senha: string,
-  nome: string
+  nome: string,
+  slug: string,
+  nomeNegocio: string
 ): Promise<Usuario> {
   const senhaHash = await bcrypt.hash(senha, 10);
-  const id = crypto.randomUUID();
+  const id = randomUUID();
 
   await db.execute({
-    sql: "INSERT INTO usuarios (id, email, senha_hash, nome) VALUES (?, ?, ?, ?)",
-    args: [id, email, senhaHash, nome],
+    sql: "INSERT INTO usuarios (id, email, senha_hash, nome, slug, nome_negocio) VALUES (?, ?, ?, ?, ?, ?)",
+    args: [id, email, senhaHash, nome, slug, nomeNegocio],
   });
 
-  return { id, email, nome };
+  return { id, email, nome, slug, nome_negocio: nomeNegocio };
 }
 
 export async function verificarLogin(
@@ -28,7 +33,7 @@ export async function verificarLogin(
   senha: string
 ): Promise<Usuario | null> {
   const result = await db.execute({
-    sql: "SELECT id, email, senha_hash, nome FROM usuarios WHERE email = ?",
+    sql: "SELECT id, email, senha_hash, nome, slug, nome_negocio FROM usuarios WHERE email = ?",
     args: [email],
   });
 
@@ -49,12 +54,14 @@ export async function verificarLogin(
     id: usuario.id as string,
     email: usuario.email as string,
     nome: usuario.nome as string,
+    nome_negocio: (usuario.nome_negocio as string) || null,
+    slug: (usuario.slug as string) || null,
   };
 }
 
 export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
   const result = await db.execute({
-    sql: "SELECT id, email, nome FROM usuarios WHERE id = ?",
+    sql: "SELECT id, email, nome, slug, nome_negocio FROM usuarios WHERE id = ?",
     args: [id],
   });
 
@@ -67,6 +74,8 @@ export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
     id: usuario.id as string,
     email: usuario.email as string,
     nome: usuario.nome as string,
+    nome_negocio: (usuario.nome_negocio as string) || null,
+    slug: (usuario.slug as string) || null,
   };
 }
 

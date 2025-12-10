@@ -483,21 +483,23 @@ export default function FuncionarioDetalhes() {
                   ) : (
                     <>
                       <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="font-medium text-slate-100 text-sm">
-                          {lavagem.descricao}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {formatDatePtBr(lavagem.data_lavagem)}
-                          {lavagem.forma_pagamento && (
-                            <>
-                              {" "}
-                              • Forma:{" "}
-                              {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}
-                            </>
-                          )}
-                        </p>
-                      </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-slate-100 text-sm">
+                            {lavagem.descricao}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {formatDatePtBr(lavagem.data_lavagem)}
+                            {lavagem.forma_pagamento && (
+                              <>
+                                {" "}
+                                • Forma:{" "}
+                                {lavagem.forma_pagamento === "pix"
+                                  ? "Pix"
+                                  : "Dinheiro"}
+                              </>
+                            )}
+                          </p>
+                        </div>
                         <div className="text-right">
                           <p className="font-semibold text-slate-100 text-sm">
                             R$ {lavagem.preco.toFixed(2).replace(".", ",")}

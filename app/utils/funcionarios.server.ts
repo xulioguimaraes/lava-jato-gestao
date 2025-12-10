@@ -77,10 +77,10 @@ export async function criarFuncionario(
     const msg = (error?.message || "").toLowerCase();
     // Se a coluna ainda não existe no ambiente (ex.: produção sem migration), faz fallback
     if (msg.includes("porcentagem_comissao") || msg.includes("no such column")) {
-      await db.execute({
-        sql: "INSERT INTO funcionarios (id, nome, email, telefone) VALUES (?, ?, ?, ?)",
-        args: [id, nome, email || null, telefone || null],
-      });
+  await db.execute({
+    sql: "INSERT INTO funcionarios (id, nome, email, telefone) VALUES (?, ?, ?, ?)",
+    args: [id, nome, email || null, telefone || null],
+  });
     } else {
       throw error;
     }
@@ -104,10 +104,10 @@ export async function atualizarFuncionario(
       args: [nome, email || null, telefone || null, ativo ? 1 : 0, porcentagemComissao, id],
     });
   } else {
-    await db.execute({
-      sql: "UPDATE funcionarios SET nome = ?, email = ?, telefone = ?, ativo = ? WHERE id = ?",
-      args: [nome, email || null, telefone || null, ativo ? 1 : 0, id],
-    });
+  await db.execute({
+    sql: "UPDATE funcionarios SET nome = ?, email = ?, telefone = ?, ativo = ? WHERE id = ?",
+    args: [nome, email || null, telefone || null, ativo ? 1 : 0, id],
+  });
   }
 }
 
