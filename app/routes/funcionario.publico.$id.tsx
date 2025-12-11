@@ -9,7 +9,7 @@ import {
   useActionData,
   useLoaderData,
   useNavigation,
-  Link,
+  useNavigate,
   useSearchParams,
 } from "@remix-run/react";
 import { buscarFuncionarioPorId } from "~/utils/funcionarios.server";
@@ -123,6 +123,7 @@ export default function FuncionarioPublico() {
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const isSubmitting = navigation.state === "submitting";
   const [searchParams, setSearchParams] = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -240,9 +241,11 @@ export default function FuncionarioPublico() {
       <header className="bg-slate-800 border-b border-slate-700">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
           <div className="flex items-center gap-2.5">
-            <Link
-              to="/funcionarios/publico"
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
               className="w-7 h-7 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-700 transition-colors"
+              title="Voltar"
             >
               <svg
                 className="w-3.5 h-3.5 text-slate-400"
@@ -253,7 +256,7 @@ export default function FuncionarioPublico() {
               >
                 <path d="M10 12l-4-4 4-4" />
               </svg>
-            </Link>
+            </button>
             <div>
               <h1 className="text-base font-semibold text-slate-100 leading-none">
                 {funcionario.nome}
