@@ -1,9 +1,9 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { useMemo, useState } from "react";
 import { requererUsuario } from "~/utils/session.server";
-import { listarTodasLavagens } from "~/utils/lavagens.server";
+import { listarLavagensSemana, obterInfoSemana } from "~/utils/lavagens.server";
 import { formatDatePtBr, parseDateOnly } from "~/utils/date";
 import { pageTitle } from "~/utils/meta";
 
@@ -16,13 +16,23 @@ export const meta: MetaFunction = () => [
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requererUsuario(request);
-  const lavagens = await listarTodasLavagens();
-  return json({ lavagens });
+  const usuario = await requererUsuario(request);
+
+  // Obter offset da semana da query string (0 = semana atual, 1 = semana anterior, etc.)
+  const url = new URL(request.url);
+  const offsetSemana = parseInt(url.searchParams.get("semana") || "0", 10) || 0;
+
+  const [lavagens, infoSemana] = await Promise.all([
+    listarLavagensSemana(offsetSemana, usuario.id),
+    Promise.resolve(obterInfoSemana(offsetSemana)),
+  ]);
+
+  return json({ lavagens, offsetSemana, infoSemana });
 }
 
 export default function LavagensPage() {
-  const { lavagens } = useLoaderData<typeof loader>();
+  const { lavagens, offsetSemana, infoSemana } = useLoaderData<typeof loader>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filtroDia, setFiltroDia] = useState<number | "todos">("todos");
 
   const lavagensFiltradas = useMemo(() => {
@@ -32,6 +42,17 @@ export default function LavagensPage() {
       return d.getDay() === filtroDia;
     });
   }, [lavagens, filtroDia]);
+
+  // Função para navegar entre semanas
+  const navegarSemana = (novoOffset: number) => {
+    const params = new URLSearchParams(searchParams);
+    if (novoOffset === 0) {
+      params.delete("semana");
+    } else {
+      params.set("semana", novoOffset.toString());
+    }
+    setSearchParams(params);
+  };
 
   const dias = [
     { label: "Dom", value: 0 },
@@ -67,26 +88,78 @@ export default function LavagensPage() {
                 <h1 className="text-base font-semibold text-slate-100 leading-none">
                   Todas as Lavagens
                 </h1>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Histórico completo das lavagens registradas.
-                </p>
               </div>
             </div>
-            <Link
-              to="/dashboard"
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
-            >
-              Voltar ao Dashboard
-            </Link>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
+        {/* Filtro de Semana */}
+        <div className="card p-3 mb-4">
+          <div className="flex items-center flex-col md:flex-row justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navegarSemana(offsetSemana + 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
+                title="Semana anterior"
+              >
+                <svg
+                  className="w-4 h-4 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              <div className="text-center min-w-[200px]">
+                <p className="text-xs text-slate-400">Semana</p>
+                <p className="text-sm font-medium text-slate-100">
+                  {infoSemana.inicioFormatado} - {infoSemana.fimFormatado}
+                </p>
+              </div>
+              <button
+                onClick={() => navegarSemana(Math.max(0, offsetSemana - 1))}
+                disabled={offsetSemana === 0}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Próxima semana"
+              >
+                <svg
+                  className="w-4 h-4 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+            {offsetSemana > 0 && (
+              <button
+                onClick={() => navegarSemana(0)}
+                className="text-xs text-indigo-400 hover:text-indigo-300"
+              >
+                Voltar para semana atual
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="card">
           <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
             <h2 className="font-semibold text-slate-100 text-sm">
-              Lavagens Registradas ({lavagens.length})
+              Lavagens Registradas ({lavagensFiltradas.length})
             </h2>
             <Link
               to="/funcionarios/publico"
@@ -114,7 +187,7 @@ export default function LavagensPage() {
                 className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
                   filtroDia === dia.value
                     ? "bg-indigo-600 text-white border-indigo-500"
-                    : "border-slate-700 text-slate-300 hover-border-slate-500 hover:text-white"
+                    : "border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white"
                 }`}
                 title={`Filtrar por ${dia.label}`}
               >
@@ -155,11 +228,14 @@ export default function LavagensPage() {
                       <td className="px-4 py-2.5 text-slate-100 font-medium">
                         {lavagem.descricao}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-slate-100 font-semibold">
+                      <td className="px-4 py-2.5 text-right text-slate-100 font-semibold whitespace-nowrap">
                         R$ {lavagem.preco.toFixed(2).replace(".", ",")}
                       </td>
                       <td className="px-4 py-2.5 text-right text-slate-300">
                         {formatDatePtBr(lavagem.data_lavagem)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-slate-300 whitespace-nowrap">
+                        {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}
                       </td>
                       <td className="px-4 py-2.5 text-slate-300">
                         {lavagem.funcionario_nome}

@@ -55,14 +55,12 @@ export function DesempenhoFuncionarios({
                     <td className="px-4 py-2.5 font-medium text-slate-100">
                       {item.funcionario_nome}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-slate-300">
+                    <td className="px-4 py-2.5 text-right text-slate-300 whitespace-nowrap">
                       R$ {item.total.toFixed(2).replace(".", ",")}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-medium text-emerald-400">
+                    <td className="px-4 py-2.5 text-right font-medium text-emerald-400 whitespace-nowrap">
                       R$ {comissao.toFixed(2).replace(".", ",")}{" "}
-                      <span className="text-xs text-slate-500">
-                        ({perc}%)
-                      </span>
+                      <span className="text-xs text-slate-500">({perc}%)</span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <span
@@ -132,4 +130,3 @@ export function DesempenhoFuncionarios({
     </div>
   );
 }
-

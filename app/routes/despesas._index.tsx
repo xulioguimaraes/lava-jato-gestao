@@ -1,9 +1,11 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
+import { useMemo, useState } from "react";
 import { requererUsuario } from "~/utils/session.server";
-import { listarTodasDespesas } from "~/utils/despesas.server";
-import { formatDatePtBr } from "~/utils/date";
+import { listarDespesasSemana } from "~/utils/despesas.server";
+import { obterInfoSemana } from "~/utils/lavagens.server";
+import { formatDatePtBr, parseDateOnly } from "~/utils/date";
 import { pageTitle } from "~/utils/meta";
 import { Toast } from "~/components/Toast";
 
@@ -17,13 +19,52 @@ export const meta: MetaFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const usuario = await requererUsuario(request);
-  const despesas = await listarTodasDespesas(usuario.id);
-  return json({ despesas });
+
+  // Obter offset da semana da query string (0 = semana atual, 1 = semana anterior, etc.)
+  const url = new URL(request.url);
+  const offsetSemana = parseInt(url.searchParams.get("semana") || "0", 10) || 0;
+
+  const [despesas, infoSemana] = await Promise.all([
+    listarDespesasSemana(offsetSemana, usuario.id),
+    Promise.resolve(obterInfoSemana(offsetSemana)),
+  ]);
+
+  return json({ despesas, offsetSemana, infoSemana });
 }
 
 export default function DespesasIndexPage() {
-  const { despesas } = useLoaderData<typeof loader>();
+  const { despesas, offsetSemana, infoSemana } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [filtroDia, setFiltroDia] = useState<number | "todos">("todos");
+
+  const despesasFiltradas = useMemo(() => {
+    if (filtroDia === "todos") return despesas;
+    return despesas.filter((despesa) => {
+      const d = parseDateOnly(despesa.data_despesa);
+      return d.getDay() === filtroDia;
+    });
+  }, [despesas, filtroDia]);
+
+  // Função para navegar entre semanas
+  const navegarSemana = (novoOffset: number) => {
+    const params = new URLSearchParams(searchParams);
+    if (novoOffset === 0) {
+      params.delete("semana");
+    } else {
+      params.set("semana", novoOffset.toString());
+    }
+    setSearchParams(params);
+  };
+
+  const dias = [
+    { label: "Dom", value: 0 },
+    { label: "Seg", value: 1 },
+    { label: "Ter", value: 2 },
+    { label: "Qua", value: 3 },
+    { label: "Qui", value: 4 },
+    { label: "Sex", value: 5 },
+    { label: "Sáb", value: 6 },
+  ];
 
   const mostrarToast = searchParams.get("toast") === "ok";
   const fecharToast = () => {
@@ -62,11 +103,79 @@ export default function DespesasIndexPage() {
                 <h1 className="text-base font-semibold text-slate-100 leading-none">
                   Todas as Despesas
                 </h1>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Visualize o histórico completo de despesas.
-                </p>
               </div>
             </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
+        {/* Filtro de Semana */}
+        <div className="card p-3 mb-4">
+          <div className="flex items-center flex-col md:flex-row justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navegarSemana(offsetSemana + 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
+                title="Semana anterior"
+              >
+                <svg
+                  className="w-4 h-4 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              <div className="text-center min-w-[200px]">
+                <p className="text-xs text-slate-400">Semana</p>
+                <p className="text-sm font-medium text-slate-100">
+                  {infoSemana.inicioFormatado} - {infoSemana.fimFormatado}
+                </p>
+              </div>
+              <button
+                onClick={() => navegarSemana(Math.max(0, offsetSemana - 1))}
+                disabled={offsetSemana === 0}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Próxima semana"
+              >
+                <svg
+                  className="w-4 h-4 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+            {offsetSemana > 0 && (
+              <button
+                onClick={() => navegarSemana(0)}
+                className="text-xs text-indigo-400 hover:text-indigo-300"
+              >
+                Voltar para semana atual
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-100 text-sm">
+              Despesas Registradas ({despesasFiltradas.length})
+            </h2>
             <Link
               to="/despesas/novo"
               className="btn-secondary py-1 px-3 text-xs h-auto min-h-0"
@@ -74,21 +183,32 @@ export default function DespesasIndexPage() {
               + Nova Despesa
             </Link>
           </div>
-        </div>
-      </header>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
-        <div className="card">
-          <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-100 text-sm">
-              Despesas Registradas ({despesas.length})
-            </h2>
-            <Link
-              to="/dashboard"
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+          <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/30 flex flex-wrap gap-2">
+            <button
+              onClick={() => setFiltroDia("todos")}
+              className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                filtroDia === "todos"
+                  ? "bg-indigo-600 text-white border-indigo-500"
+                  : "border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white"
+              }`}
             >
-              Voltar ao Dashboard
-            </Link>
+              Todos
+            </button>
+            {dias.map((dia) => (
+              <button
+                key={dia.value}
+                onClick={() => setFiltroDia(dia.value)}
+                className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                  filtroDia === dia.value
+                    ? "bg-indigo-600 text-white border-indigo-500"
+                    : "border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white"
+                }`}
+                title={`Filtrar por ${dia.label}`}
+              >
+                {dia.label}
+              </button>
+            ))}
           </div>
 
           {despesas.length === 0 ? (
@@ -115,7 +235,7 @@ export default function DespesasIndexPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
-                  {despesas.map((despesa) => (
+                  {despesasFiltradas.map((despesa) => (
                     <tr
                       key={despesa.id}
                       className="hover:bg-slate-800/50 transition-colors"
@@ -123,10 +243,10 @@ export default function DespesasIndexPage() {
                       <td className="px-4 py-2.5 text-slate-100 font-medium">
                         {despesa.descricao}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-red-300 font-semibold">
+                      <td className="px-4 py-2.5 text-right text-red-300 font-semibold whitespace-nowrap">
                         - R$ {despesa.valor.toFixed(2).replace(".", ",")}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-slate-300">
+                      <td className="px-4 py-2.5 text-right text-slate-300 whitespace-nowrap">
                         {formatDatePtBr(despesa.data_despesa)}
                       </td>
                       <td className="px-4 py-2.5 text-slate-300">
