@@ -1,11 +1,13 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { requererUsuario } from "~/utils/session.server";
 import { listarLavagensSemana, obterInfoSemana } from "~/utils/lavagens.server";
 import { formatDatePtBr, parseDateOnly } from "~/utils/date";
 import { pageTitle } from "~/utils/meta";
+import { DashboardHeader } from "~/components/dashboard/DashboardHeader";
+import { BottomNav } from "~/components/dashboard/BottomNav";
 
 export const meta: MetaFunction = () => [
   { title: pageTitle("Lavagens") },
@@ -27,13 +29,33 @@ export async function loader({ request }: LoaderFunctionArgs) {
     Promise.resolve(obterInfoSemana(offsetSemana)),
   ]);
 
-  return json({ lavagens, offsetSemana, infoSemana });
+  return json({
+    lavagens,
+    offsetSemana,
+    infoSemana,
+    usuario,
+    usuarioSlug: usuario.slug || "",
+  });
 }
 
 export default function LavagensPage() {
-  const { lavagens, offsetSemana, infoSemana } = useLoaderData<typeof loader>();
+  const { lavagens, offsetSemana, infoSemana, usuario, usuarioSlug } =
+    useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtroDia, setFiltroDia] = useState<number | "todos">("todos");
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest("[data-user-menu]")) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showUserMenu]);
 
   const lavagensFiltradas = useMemo(() => {
     if (filtroDia === "todos") return lavagens;
@@ -42,6 +64,11 @@ export default function LavagensPage() {
       return d.getDay() === filtroDia;
     });
   }, [lavagens, filtroDia]);
+
+  const totalFiltrado = useMemo(
+    () => lavagensFiltradas.reduce((acc, l) => acc + l.preco, 0),
+    [lavagensFiltradas],
+  );
 
   // Função para navegar entre semanas
   const navegarSemana = (novoOffset: number) => {
@@ -65,118 +92,78 @@ export default function LavagensPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-          <div className="flex justify-between items-center h-12">
+    <div className="min-h-screen bg-deep pb-24 md:pb-8">
+      <DashboardHeader
+        nomeNegocio={usuario.nome_negocio || "Lava Jato Gestão"}
+        usuarioSlug={usuarioSlug || ""}
+        offsetSemana={offsetSemana}
+        infoSemana={infoSemana}
+        navegarSemana={navegarSemana}
+        showUserMenu={showUserMenu}
+        setShowUserMenu={setShowUserMenu}
+      />
+
+      <main className="pt-20 px-4 max-w-[1200px] mx-auto space-y-4">
+        <div className="mb-2">
+          <h1 className="font-display font-extrabold text-xl tracking-tight">
+            Lavagens
+          </h1>
+          <p
+            className="font-mono-app mt-1"
+            style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.3)" }}
+          >
+            Listagem completa de lavagens da semana
+          </p>
+        </div>
+
+        <div
+          className="bg-surface rounded-md"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <div className="px-5 pt-5 pb-3 flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-3">
-              <Link
-                to="/dashboard"
-                className="w-7 h-7 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-700 transition-colors"
+              <p
+                className="font-mono-app uppercase tracking-[0.12em]"
+                style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
               >
-                <svg
-                  className="w-3.5 h-3.5 text-slate-400"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M10 12l-4-4 4-4" />
-                </svg>
-              </Link>
-              <div>
-                <h1 className="text-base font-semibold text-slate-100 leading-none">
-                  Todas as Lavagens
-                </h1>
-              </div>
+                LAVAGENS REGISTRADAS ({lavagensFiltradas.length})
+              </p>
+              <p
+                className="font-mono-app font-semibold"
+                style={{
+                  fontSize: "0.85rem",
+                  color: "rgba(255,255,255,0.9)",
+                  fontFamily: "'Poppins', sans-serif",
+                }}
+              >
+                Total: R$ {totalFiltrado.toFixed(2).replace(".", ",")}
+              </p>
             </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
-        {/* Filtro de Semana */}
-        <div className="card p-3 mb-4">
-          <div className="flex items-center flex-col md:flex-row justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navegarSemana(offsetSemana + 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
-                title="Semana anterior"
-              >
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <div className="text-center min-w-[200px]">
-                <p className="text-xs text-slate-400">Semana</p>
-                <p className="text-sm font-medium text-slate-100">
-                  {infoSemana.inicioFormatado} - {infoSemana.fimFormatado}
-                </p>
-              </div>
-              <button
-                onClick={() => navegarSemana(Math.max(0, offsetSemana - 1))}
-                disabled={offsetSemana === 0}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Próxima semana"
-              >
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-            {offsetSemana > 0 && (
-              <button
-                onClick={() => navegarSemana(0)}
-                className="text-xs text-indigo-400 hover:text-indigo-300"
-              >
-                Voltar para semana atual
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-100 text-sm">
-              Lavagens Registradas ({lavagensFiltradas.length})
-            </h2>
             <Link
-              to="/funcionarios/publico"
-              className="btn-secondary py-1 px-3 text-xs h-auto min-h-0"
+              to={usuarioSlug ? `/${usuarioSlug}` : "/dashboard"}
+              className="font-mono-app text-accent hover:opacity-80"
+              style={{ fontSize: "0.65rem", color: "#4D7C5F" }}
             >
               Registrar nova
             </Link>
           </div>
 
-          <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/30 flex flex-wrap gap-2">
+          <div
+            className="px-5 py-3 flex flex-wrap gap-2"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+          >
             <button
               onClick={() => setFiltroDia("todos")}
-              className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+              className={`text-xs px-3 py-1.5 rounded font-mono-app transition-colors ${
                 filtroDia === "todos"
-                  ? "bg-indigo-600 text-white border-indigo-500"
-                  : "border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white"
+                  ? "bg-[#4D7C5F] text-[#0C0C0C]"
+                  : "hover-item"
               }`}
+              style={
+                filtroDia !== "todos"
+                  ? { border: "1px solid rgba(255,255,255,0.1)" }
+                  : undefined
+              }
             >
               Todos
             </button>
@@ -184,11 +171,16 @@ export default function LavagensPage() {
               <button
                 key={dia.value}
                 onClick={() => setFiltroDia(dia.value)}
-                className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                className={`text-xs px-3 py-1.5 rounded font-mono-app transition-colors ${
                   filtroDia === dia.value
-                    ? "bg-indigo-600 text-white border-indigo-500"
-                    : "border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white"
+                    ? "bg-[#4D7C5F] text-[#0C0C0C]"
+                    : "hover-item"
                 }`}
+                style={
+                  filtroDia !== dia.value
+                    ? { border: "1px solid rgba(255,255,255,0.1)" }
+                    : undefined
+                }
                 title={`Filtrar por ${dia.label}`}
               >
                 {dia.label}
@@ -197,48 +189,110 @@ export default function LavagensPage() {
           </div>
 
           {lavagens.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-slate-400 text-sm">
+            <div className="px-5 py-12 text-center">
+              <p
+                className="font-mono-app"
+                style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)" }}
+              >
                 Nenhuma lavagem cadastrada.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-700">
-                  <tr>
-                    <th className="px-4 py-2 font-medium text-xs">Descrição</th>
-                    <th className="px-4 py-2 font-medium text-xs text-right">
+                <thead>
+                  <tr
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+                  >
+                    <th
+                      className="px-5 py-2 font-mono-app font-medium"
+                      style={{
+                        fontSize: "0.6rem",
+                        color: "rgba(255,255,255,0.3)",
+                      }}
+                    >
+                      Descrição
+                    </th>
+                    <th
+                      className="px-5 py-2 font-mono-app font-medium text-right"
+                      style={{
+                        fontSize: "0.6rem",
+                        color: "rgba(255,255,255,0.3)",
+                      }}
+                    >
                       Preço
                     </th>
-                    <th className="px-4 py-2 font-medium text-xs text-right">
+                    <th
+                      className="px-5 py-2 font-mono-app font-medium text-right"
+                      style={{
+                        fontSize: "0.6rem",
+                        color: "rgba(255,255,255,0.3)",
+                      }}
+                    >
                       Data
                     </th>
-                    <th className="px-4 py-2 font-medium text-xs">
+                    <th
+                      className="px-5 py-2 font-mono-app font-medium"
+                      style={{
+                        fontSize: "0.6rem",
+                        color: "rgba(255,255,255,0.3)",
+                      }}
+                    >
                       Funcionário
+                    </th>
+                    <th
+                      className="px-5 py-2 font-mono-app font-medium"
+                      style={{
+                        fontSize: "0.6rem",
+                        color: "rgba(255,255,255,0.3)",
+                      }}
+                    >
+                      Forma
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700">
+                <tbody>
                   {lavagensFiltradas.map((lavagem) => (
                     <tr
                       key={lavagem.id}
-                      className="hover:bg-slate-800/50 transition-colors"
+                      className="hover-item"
+                      style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
                     >
-                      <td className="px-4 py-2.5 text-slate-100 font-medium">
+                      <td className="px-5 py-3 font-mono-app text-sm">
                         {lavagem.descricao}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-slate-100 font-semibold whitespace-nowrap">
+                      <td
+                        className="px-5 py-3 text-right font-semibold whitespace-nowrap"
+                        style={{ fontFamily: "'Poppins', sans-serif" }}
+                      >
                         R$ {lavagem.preco.toFixed(2).replace(".", ",")}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-slate-300">
+                      <td
+                        className="px-5 py-3 text-right font-mono-app"
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "rgba(255,255,255,0.5)",
+                        }}
+                      >
                         {formatDatePtBr(lavagem.data_lavagem)}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-slate-300 whitespace-nowrap">
-                        {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-300">
+                      <td
+                        className="px-5 py-3 font-mono-app"
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "rgba(255,255,255,0.5)",
+                        }}
+                      >
                         {lavagem.funcionario_nome}
+                      </td>
+                      <td
+                        className="px-5 py-3 font-mono-app uppercase"
+                        style={{
+                          fontSize: "0.65rem",
+                          color: "rgba(255,255,255,0.4)",
+                        }}
+                      >
+                        {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}
                       </td>
                     </tr>
                   ))}
@@ -247,7 +301,9 @@ export default function LavagensPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
+
+      <BottomNav />
     </div>
   );
 }

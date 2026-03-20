@@ -6,6 +6,7 @@ import type {
 } from "@remix-run/node";
 import {
   Form,
+  Link,
   useActionData,
   useLoaderData,
   useNavigation,
@@ -13,6 +14,7 @@ import {
   useSearchParams,
 } from "@remix-run/react";
 import { buscarFuncionarioPorId } from "~/utils/funcionarios.server";
+import { buscarUsuarioPorId } from "~/utils/auth.server";
 import {
   criarLavagem,
   listarLavagensPorFuncionario,
@@ -23,6 +25,7 @@ import { useRef, useState, useEffect } from "react";
 import { pageTitle } from "~/utils/meta";
 import { formatDatePtBr } from "~/utils/date";
 import { Toast } from "~/components/Toast";
+import { AnimatedCounter } from "~/components/dashboard/AnimatedCounter";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const nome = data?.funcionario?.nome;
@@ -43,17 +46,29 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
   const userId = funcionario.user_id || undefined;
 
-  // Obter offset da semana da query string (0 = semana atual, 1 = semana anterior, etc.)
   const url = new URL(request.url);
   const offsetSemana = parseInt(url.searchParams.get("semana") || "0", 10) || 0;
 
+  let usuarioSlug: string | null = null;
+  if (funcionario.user_id) {
+    const usuario = await buscarUsuarioPorId(funcionario.user_id);
+    usuarioSlug = usuario?.slug || null;
+  }
+
   const [lavagens, comissao, infoSemana] = await Promise.all([
-    listarLavagensPorFuncionario(funcionario.id, offsetSemana, false, userId), // false = não incluir fotos no loader
+    listarLavagensPorFuncionario(funcionario.id, offsetSemana, false, userId),
     calcularComissaoFuncionario(funcionario.id, offsetSemana, userId),
     Promise.resolve(obterInfoSemana(offsetSemana)),
   ]);
 
-  return json({ funcionario, lavagens, comissao, offsetSemana, infoSemana });
+  return json({
+    funcionario,
+    lavagens,
+    comissao,
+    offsetSemana,
+    infoSemana,
+    usuarioSlug,
+  });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -119,8 +134,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function FuncionarioPublico() {
-  const { funcionario, lavagens, comissao, offsetSemana, infoSemana } =
-    useLoaderData<typeof loader>();
+  const {
+    funcionario,
+    lavagens,
+    comissao,
+    offsetSemana,
+    infoSemana,
+    usuarioSlug,
+  } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const navigate = useNavigate();
@@ -228,9 +249,17 @@ export default function FuncionarioPublico() {
     setPrecoFormatado(formatado);
   };
 
+  const formatCurrency = (v: number) =>
+    "R$ " +
+    v.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const backTo = usuarioSlug ? `/${usuarioSlug}` : undefined;
+
   return (
-    <div className="min-h-screen bg-slate-900">
-      {/* Toast de Sucesso */}
+    <div className="min-h-screen bg-deep pb-12">
       {showToast && (
         <Toast
           message="Lavagem registrada com sucesso!"
@@ -238,359 +267,451 @@ export default function FuncionarioPublico() {
         />
       )}
 
-      <header className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="w-7 h-7 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-700 transition-colors"
-              title="Voltar"
-            >
-              <svg
-                className="w-3.5 h-3.5 text-slate-400"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M10 12l-4-4 4-4" />
-              </svg>
-            </button>
-            <div>
-              <h1 className="text-base font-semibold text-slate-100 leading-none">
-                {funcionario.nome}
-              </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Registre suas lavagens e acompanhe seu desempenho
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4">
-        {/* Filtro de Semana */}
-        <div className="card p-3 mb-4">
-          <div className="flex items-center flex-col md:flex-row justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navegarSemana(offsetSemana + 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
-                title="Semana anterior"
-              >
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <div className="text-center min-w-[200px]">
-                <p className="text-xs text-slate-400">Semana</p>
-                <p className="text-sm font-medium text-slate-100">
-                  {infoSemana.inicioFormatado} - {infoSemana.fimFormatado}
-                </p>
-              </div>
-              <button
-                onClick={() => navegarSemana(Math.max(0, offsetSemana - 1))}
-                disabled={offsetSemana === 0}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Próxima semana"
-              >
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-            {offsetSemana > 0 && (
-              <button
-                onClick={() => navegarSemana(0)}
-                className="text-xs text-indigo-400 hover:text-indigo-300"
-              >
-                Voltar para semana atual
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Cards de Resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <div className="card p-3">
-            <h3 className="text-xs font-medium text-slate-400 mb-1">
-              Total Lavado
-            </h3>
-            <p className="text-lg font-bold text-slate-100">
-              R$ {comissao.total.toFixed(2).replace(".", ",")}
-            </p>
-          </div>
-          <div className="card p-3">
-            <h3 className="text-xs font-medium text-slate-400 mb-1">
-              Sua Comissão ({comissao.porcentagem || 40}%)
-            </h3>
-            <p className="text-lg font-bold text-emerald-400">
-              R$ {comissao.comissao.toFixed(2).replace(".", ",")}
-            </p>
-          </div>
-          <div className="card p-3">
-            <h3 className="text-xs font-medium text-slate-400 mb-1">
-              Lavagens
-            </h3>
-            <p className="text-lg font-bold text-slate-100">
-              {lavagens.length}
-            </p>
-          </div>
-        </div>
-
-        {/* Botão para abrir modal de nova lavagem */}
-        <div className="mb-4">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="btn-primary flex items-center gap-2"
+      {/* Header */}
+      <header
+        className="sticky top-0 z-50 bg-deep px-4 py-3 flex items-center gap-3"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        {backTo ? (
+          <Link
+            to={backTo}
+            className="w-8 h-8 rounded-md flex items-center justify-center hover-item"
+            style={{ border: "1px solid rgba(255,255,255,0.1)" }}
           >
             <svg
               className="w-4 h-4"
               fill="none"
               stroke="currentColor"
+              strokeWidth={1.5}
               viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="w-8 h-8 rounded-md flex items-center justify-center hover-item"
+            style={{ border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
+        <div>
+          <h1 className="font-display font-bold text-base tracking-tight">
+            {funcionario.nome}
+          </h1>
+          <p
+            className="font-mono-app"
+            style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)" }}
+          >
+            Registre suas lavagens e acompanhe seu desempenho
+          </p>
+        </div>
+      </header>
+
+      <main className="px-4 max-w-[800px] mx-auto space-y-4 mt-4">
+        {/* Week Selector */}
+        <div
+          className="bg-surface rounded-md px-5 py-4 flex items-center justify-between"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <button
+            type="button"
+            onClick={() => navegarSemana(offsetSemana + 1)}
+            className="hover-item p-1"
+          >
+            <svg
+              className="w-4 h-4"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="text-center">
+            <p
+              className="font-mono-app uppercase"
+              style={{
+                fontSize: "0.6rem",
+                color: "rgba(255,255,255,0.3)",
+                letterSpacing: "0.12em",
+              }}
+            >
+              SEMANA
+            </p>
+            <p className="font-mono-app text-sm mt-0.5">
+              {infoSemana.inicioFormatado} – {infoSemana.fimFormatado}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navegarSemana(Math.max(0, offsetSemana - 1))}
+            disabled={offsetSemana === 0}
+            className="hover-item p-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg
+              className="w-4 h-4"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* KPIs */}
+        <div
+          className="grid grid-cols-3 bg-surface rounded-md"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <div className="px-5 py-4">
+            <p
+              className="font-mono-app uppercase tracking-[0.12em] mb-2"
+              style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
+            >
+              TOTAL LAVADO
+            </p>
+            <p
+              className="font-extrabold text-xl tracking-tight"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+              <AnimatedCounter value={comissao.total} prefix="R$ " isCurrency />
+            </p>
+          </div>
+          <div
+            className="px-5 py-4"
+            style={{ borderLeft: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            <p
+              className="font-mono-app uppercase tracking-[0.12em] mb-2"
+              style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
+            >
+              SUA COMISSÃO ({comissao.porcentagem || 40}%)
+            </p>
+            <p
+              className="font-extrabold text-xl tracking-tight text-accent"
+              style={{ fontFamily: "'Poppins', sans-serif", color: "#4D7C5F" }}
+            >
+              <AnimatedCounter value={comissao.comissao} prefix="R$ " isCurrency />
+            </p>
+          </div>
+          <div
+            className="px-5 py-4"
+            style={{ borderLeft: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            <p
+              className="font-mono-app uppercase tracking-[0.12em] mb-2"
+              style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
+            >
+              LAVAGENS
+            </p>
+            <p
+              className="font-extrabold text-xl tracking-tight"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+              <AnimatedCounter value={lavagens.length} />
+            </p>
+          </div>
+        </div>
+
+        {/* Register Button */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 rounded-md font-mono-app text-sm"
+            style={{
+              background: "#4D7C5F",
+              color: "#0C0C0C",
+              fontWeight: 500,
+            }}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             Registrar Nova Lavagem
           </button>
         </div>
 
-        {/* Modal de Nova Lavagem */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-slate-800 border-b border-slate-700 px-4 py-3 flex justify-between items-center">
-                <h2 className="text-base font-semibold text-slate-100">
-                  Registrar Nova Lavagem
-                </h2>
-                <button
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setPrecoFormatado("");
-                  }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-700 transition-colors"
-                >
-                  <svg
-                    className="w-5 h-5 text-slate-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <div className="p-4">
-                <Form
-                  method="post"
-                  encType="multipart/form-data"
-                  className="space-y-3"
-                >
-                  {actionData?.erro && (
-                    <div className="bg-red-900/30 border border-red-800 text-red-400 px-3 py-2 rounded text-sm">
-                      {actionData.erro}
-                    </div>
-                  )}
-
-                  <div>
-                    <label
-                      htmlFor="descricao"
-                      className="block text-xs font-medium text-slate-300 mb-1"
-                    >
-                      O que você lavou? *
-                    </label>
-                    <input
-                      type="text"
-                      id="descricao"
-                      name="descricao"
-                      required
-                      className="input-field"
-                      placeholder="Ex: Carro completo, Moto, etc."
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label
-                        htmlFor="preco"
-                        className="block text-xs font-medium text-slate-300 mb-1"
-                      >
-                        Preço (R$) *
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
-                          R$
-                        </span>
-                        <input
-                          type="text"
-                          id="preco"
-                          value={precoFormatado}
-                          onChange={handlePrecoChange}
-                          required
-                          className="input-field pl-8"
-                          placeholder="0,00"
-                          inputMode="numeric"
-                        />
-                        {/* Input hidden para enviar o valor numérico ao backend */}
-                        <input
-                          type="hidden"
-                          name="preco"
-                          value={desformatarMoeda(precoFormatado)}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="forma_pagamento"
-                        className="block text-xs font-medium text-slate-300 mb-1"
-                      >
-                        Forma de pagamento *
-                      </label>
-                      <select
-                        id="forma_pagamento"
-                        name="forma_pagamento"
-                        required
-                        className="input-field"
-                        defaultValue="pix"
-                      >
-                        <option value="pix">Pix</option>
-                        <option value="dinheiro">Dinheiro</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="data_lavagem"
-                        className="block text-xs font-medium text-slate-300 mb-1"
-                      >
-                        Data *
-                      </label>
-                      <input
-                        type="date"
-                        id="data_lavagem"
-                        name="data_lavagem"
-                        required
-                        defaultValue={hoje}
-                        max={hoje}
-                        className="input-field"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-3 border-t border-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsModalOpen(false);
-                        setPrecoFormatado("");
-                      }}
-                      className="btn-secondary flex-1"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSubmitting ? "Registrando..." : "Registrar Lavagem"}
-                    </button>
-                  </div>
-                </Form>
-              </div>
-            </div>
+        {/* Lavagens List */}
+        <div
+          className="bg-surface rounded-md"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <div className="px-5 pt-5 pb-3">
+            <h2 className="font-display font-bold text-sm tracking-tight">
+              Lavagens da Semana
+            </h2>
           </div>
-        )}
 
-        {/* Lista de Lavagens da Semana */}
-        <div className="card p-4">
-          <h2 className="text-base font-semibold text-slate-100 mb-3">
-            Lavagens{" "}
-            {offsetSemana === 0
-              ? "da Semana"
-              : `(${infoSemana.inicioFormatado} - ${infoSemana.fimFormatado})`}
-          </h2>
           {lavagens.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3">
-                <svg
-                  className="w-5 h-5 text-slate-500"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <rect x="3" y="4" width="14" height="12" rx="1" />
-                  <path d="M3 7h14M7 10h6M7 13h4" />
-                </svg>
-              </div>
-              <p className="text-slate-400 text-sm">
+            <div className="px-5 py-8 text-center">
+              <p
+                className="font-mono-app"
+                style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.2)" }}
+              >
                 Nenhuma lavagem registrada esta semana
               </p>
             </div>
           ) : (
-            <div className="space-y-2 max-h-[500px] overflow-y-auto">
-              {lavagens.map((lavagem) => (
-                <div
-                  key={lavagem.id}
-                  className="border border-slate-700 rounded-lg p-2.5 hover:bg-slate-800/50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-100 text-sm truncate">
-                      {lavagem.descricao}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
+            <div>
+              {lavagens.map((lavagem) => {
+                const comissaoValor =
+                  (lavagem.preco * (comissao.porcentagem || 40)) / 100;
+                return (
+                  <div
+                    key={lavagem.id}
+                    className="px-5 py-3.5 hover-item"
+                    style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
+                  >
+                    <p className="font-mono-app text-sm">{lavagem.descricao}</p>
+                    <p
+                      className="font-mono-app mt-0.5"
+                      style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.3)" }}
+                    >
                       {formatDatePtBr(lavagem.data_lavagem)}
                     </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <p className="text-xs font-semibold text-slate-200">
-                        R$ {lavagem.preco.toFixed(2).replace(".", ",")}
-                      </p>
-                      <span className="text-xs text-emerald-400">
-                        • Comissão: R${" "}
-                        {((lavagem.preco * (comissao.porcentagem || 40)) / 100)
-                          .toFixed(2)
-                          .replace(".", ",")}
+                    <div className="flex items-center gap-3 mt-1">
+                      <span
+                        className="font-mono-app text-xs"
+                        style={{
+                          fontFamily: "'Poppins', sans-serif",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatCurrency(lavagem.preco)}
+                      </span>
+                      <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+                      <span
+                        className="font-mono-app text-xs text-accent"
+                        style={{ color: "#4D7C5F" }}
+                      >
+                        Comissão: {formatCurrency(comissaoValor)}
                       </span>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
+      </main>
+
+      {/* Bottom Sheet for registration */}
+      {isModalOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(0,0,0,0.6)" }}
+            onClick={() => {
+              setIsModalOpen(false);
+              setPrecoFormatado("");
+            }}
+            aria-hidden="true"
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-y-auto"
+            style={{
+              background: "#141414",
+              borderTopLeftRadius: 12,
+              borderTopRightRadius: 12,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div
+              className="w-10 h-1 mx-auto mt-3 rounded-full"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
+            <div className="px-6 pt-5 pb-6">
+              <h3 className="font-display font-bold text-sm">
+                Registrar Lavagem
+              </h3>
+              <p
+                className="font-mono-app mt-1"
+                style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.3)" }}
+              >
+                Preencha os dados da lavagem
+              </p>
+
+              <Form
+                method="post"
+                encType="multipart/form-data"
+                className="space-y-4 mt-5"
+              >
+                {actionData?.erro && (
+                  <div
+                    className="px-3 py-2 rounded text-sm"
+                    style={{
+                      background: "rgba(248,113,113,0.15)",
+                      border: "1px solid rgba(248,113,113,0.3)",
+                      color: "#fca5a5",
+                    }}
+                  >
+                    {actionData.erro}
+                  </div>
+                )}
+
+                <div>
+                  <label
+                    htmlFor="descricao"
+                    className="block font-mono-app text-xs mb-1"
+                    style={{ color: "rgba(255,255,255,0.5)" }}
+                  >
+                    O que você lavou? *
+                  </label>
+                  <input
+                    type="text"
+                    id="descricao"
+                    name="descricao"
+                    required
+                    placeholder="Ex: Carro completo, Moto, Tapete..."
+                    className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="preco"
+                      className="block font-mono-app text-xs mb-1"
+                      style={{ color: "rgba(255,255,255,0.5)" }}
+                    >
+                      Preço (R$) *
+                    </label>
+                    <div className="relative">
+                      <span
+                        className="absolute left-3 top-1/2 -translate-y-1/2 font-mono-app text-sm"
+                        style={{ color: "rgba(255,255,255,0.4)" }}
+                      >
+                        R$
+                      </span>
+                      <input
+                        type="text"
+                        id="preco"
+                        value={precoFormatado}
+                        onChange={handlePrecoChange}
+                        required
+                        placeholder="0,00"
+                        inputMode="numeric"
+                        className="w-full pl-9 pr-3 py-2 rounded font-mono-app text-sm"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                        }}
+                      />
+                      <input
+                        type="hidden"
+                        name="preco"
+                        value={desformatarMoeda(precoFormatado)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="forma_pagamento"
+                      className="block font-mono-app text-xs mb-1"
+                      style={{ color: "rgba(255,255,255,0.5)" }}
+                    >
+                      Pagamento *
+                    </label>
+                    <select
+                      id="forma_pagamento"
+                      name="forma_pagamento"
+                      required
+                      defaultValue="pix"
+                      className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                      }}
+                    >
+                      <option value="pix">Pix</option>
+                      <option value="dinheiro">Dinheiro</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="data_lavagem"
+                    className="block font-mono-app text-xs mb-1"
+                    style={{ color: "rgba(255,255,255,0.5)" }}
+                  >
+                    Data *
+                  </label>
+                  <input
+                    type="date"
+                    id="data_lavagem"
+                    name="data_lavagem"
+                    required
+                    defaultValue={hoje}
+                    max={hoje}
+                    className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setPrecoFormatado("");
+                    }}
+                    className="flex-1 px-4 py-2.5 rounded font-mono-app text-sm hover-item"
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.2)",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2.5 rounded font-mono-app text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: "#4D7C5F",
+                      color: "#0C0C0C",
+                    }}
+                  >
+                    {isSubmitting ? "Registrando..." : "Registrar"}
+                  </button>
+                </div>
+              </Form>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

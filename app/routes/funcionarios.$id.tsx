@@ -18,26 +18,41 @@ import {
   atualizarLavagem,
   excluirLavagem,
   buscarLavagemPorId,
+  obterInfoSemana,
 } from "~/utils/lavagens.server";
 import { useState, useEffect } from "react";
 import { formatDatePtBr } from "~/utils/date";
 import { Toast } from "~/components/Toast";
+import { DashboardHeader } from "~/components/dashboard/DashboardHeader";
+import { BottomNav } from "~/components/dashboard/BottomNav";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requererUsuario(request);
+  const usuario = await requererUsuario(request);
 
   const funcionario = await buscarFuncionarioPorId(params.id!);
   if (!funcionario) {
     throw new Response("Funcionário não encontrado", { status: 404 });
   }
 
+  const url = new URL(request.url);
+  const offsetSemana = parseInt(url.searchParams.get("semana") || "0", 10) || 0;
+  const infoSemana = obterInfoSemana(offsetSemana);
+
   // Não trazer fotos para evitar payload grande
   const [lavagens, comissao] = await Promise.all([
-    listarLavagensPorFuncionario(funcionario.id, 0, false),
-    calcularComissaoFuncionario(funcionario.id),
+    listarLavagensPorFuncionario(funcionario.id, offsetSemana, false, usuario.id),
+    calcularComissaoFuncionario(funcionario.id, offsetSemana, usuario.id),
   ]);
 
-  return json({ funcionario, lavagens, comissao });
+  return json({
+    funcionario,
+    lavagens,
+    comissao,
+    usuario,
+    usuarioSlug: usuario.slug || "",
+    offsetSemana,
+    infoSemana,
+  });
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -68,7 +83,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       ativo,
       porcentagem,
     );
-    return redirect(`/funcionarios/${params.id}?toast=saved`);
+    const url = new URL(request.url);
+    url.searchParams.set("toast", "saved");
+    return redirect(url.pathname + "?" + url.searchParams.toString());
   }
 
   if (intent === "updateLavagem") {
@@ -111,22 +128,34 @@ export async function action({ request, params }: ActionFunctionArgs) {
       fotoUrl,
       dataLavagem,
     );
-    return redirect(`/funcionarios/${params.id}?toast=saved`);
+    const url = new URL(request.url);
+    url.searchParams.set("toast", "saved");
+    return redirect(url.pathname + "?" + url.searchParams.toString());
   }
 
   if (intent === "deleteLavagem") {
     const lavagemId = formData.get("lavagemId") as string;
     await excluirLavagem(lavagemId);
-    return redirect(`/funcionarios/${params.id}`);
+    const url = new URL(request.url);
+    return redirect(url.pathname + (url.search ? "?" + url.search : ""));
   }
 
   return null;
 }
 
 export default function FuncionarioDetalhes() {
-  const { funcionario, lavagens, comissao } = useLoaderData<typeof loader>();
+  const {
+    funcionario,
+    lavagens,
+    comissao,
+    usuario,
+    usuarioSlug,
+    offsetSemana,
+    infoSemana,
+  } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const isSubmitting =
     navigation.state === "submitting" || navigation.state === "loading";
   const [isEditing, setIsEditing] = useState(false);
@@ -147,6 +176,23 @@ export default function FuncionarioDetalhes() {
     }
   }, [searchParams, setSearchParams]);
 
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest("[data-user-menu]")) setShowUserMenu(false);
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showUserMenu]);
+
+  const navegarSemana = (novoOffset: number) => {
+    const params = new URLSearchParams(searchParams);
+    if (novoOffset === 0) params.delete("semana");
+    else params.set("semana", novoOffset.toString());
+    setSearchParams(params);
+  };
+
   // Função para formatar telefone para WhatsApp
   const formatarTelefoneWhatsApp = (telefone: string | null) => {
     if (!telefone) return null;
@@ -160,44 +206,36 @@ export default function FuncionarioDetalhes() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-deep pb-24 md:pb-8">
       {showToast && (
         <Toast
           message="Salvo com sucesso!"
           onClose={() => setShowToast(false)}
         />
       )}
-      <header className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
-          <div className="flex items-center gap-2.5">
-            <Link
-              to="/dashboard"
-              className="w-7 h-7 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-700 transition-colors"
-            >
-              <svg
-                className="w-3.5 h-3.5 text-slate-400"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M10 12l-4-4 4-4" />
-              </svg>
-            </Link>
+      <DashboardHeader
+        nomeNegocio={usuario.nome_negocio || "Lava Jato Gestão"}
+        usuarioSlug={usuarioSlug || ""}
+        offsetSemana={offsetSemana}
+        infoSemana={infoSemana}
+        navegarSemana={navegarSemana}
+        showUserMenu={showUserMenu}
+        setShowUserMenu={setShowUserMenu}
+      />
 
-            <div>
-              <h1 className="text-base font-semibold text-slate-100 leading-none">
-                {funcionario.nome}
-              </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Detalhes do funcionário
-              </p>
-            </div>
-          </div>
+      <main className="pt-20 px-4 max-w-[1200px] mx-auto space-y-4">
+        <div className="mb-2">
+          <h1 className="font-display font-extrabold text-xl tracking-tight">
+            {funcionario.nome}
+          </h1>
+          <p
+            className="font-mono-app mt-1"
+            style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.3)" }}
+          >
+            Detalhes do funcionário
+          </p>
         </div>
-      </header>
 
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4">
         <div className="card p-4 mb-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex gap-2">
@@ -584,7 +622,8 @@ export default function FuncionarioDetalhes() {
             </div>
           )}
         </div>
-      </div>
+      </main>
+      <BottomNav />
     </div>
   );
 }

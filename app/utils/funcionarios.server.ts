@@ -58,7 +58,7 @@ export async function listarFuncionarios(
       nome: String(row.nome || ""),
       email: row.email ? String(row.email) : null,
       telefone: row.telefone ? String(row.telefone) : null,
-      ativo: Number(row.ativo || 1),
+      ativo: Number(row.ativo ?? 1),
       porcentagem_comissao: Number(row.porcentagem_comissao || 40),
       user_id: row.user_id ? String(row.user_id) : null,
       created_at: String(row.created_at || ""),

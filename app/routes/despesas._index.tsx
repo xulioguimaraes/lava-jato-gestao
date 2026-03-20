@@ -1,13 +1,15 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { requererUsuario } from "~/utils/session.server";
 import { listarDespesasSemana } from "~/utils/despesas.server";
 import { obterInfoSemana } from "~/utils/lavagens.server";
 import { formatDatePtBr, parseDateOnly } from "~/utils/date";
 import { pageTitle } from "~/utils/meta";
 import { Toast } from "~/components/Toast";
+import { DashboardHeader } from "~/components/dashboard/DashboardHeader";
+import { BottomNav } from "~/components/dashboard/BottomNav";
 
 export const meta: MetaFunction = () => [
   { title: pageTitle("Despesas") },
@@ -29,13 +31,38 @@ export async function loader({ request }: LoaderFunctionArgs) {
     Promise.resolve(obterInfoSemana(offsetSemana)),
   ]);
 
-  return json({ despesas, offsetSemana, infoSemana });
+  return json({
+    despesas,
+    offsetSemana,
+    infoSemana,
+    usuario,
+    usuarioSlug: usuario.slug || "",
+  });
 }
 
 export default function DespesasIndexPage() {
-  const { despesas, offsetSemana, infoSemana } = useLoaderData<typeof loader>();
+  const {
+    despesas,
+    offsetSemana,
+    infoSemana,
+    usuario,
+    usuarioSlug,
+  } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtroDia, setFiltroDia] = useState<number | "todos">("todos");
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest("[data-user-menu]")) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showUserMenu]);
 
   const despesasFiltradas = useMemo(() => {
     if (filtroDia === "todos") return despesas;
@@ -74,124 +101,73 @@ export default function DespesasIndexPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-deep pb-24 md:pb-8">
       {mostrarToast && (
         <Toast
           message="Despesa registrada com sucesso!"
           onClose={fecharToast}
         />
       )}
-      <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-          <div className="flex justify-between items-center h-12">
-            <div className="flex items-center gap-2">
-              <Link
-                to="/dashboard"
-                className="w-7 h-7 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-700 transition-colors"
-              >
-                <svg
-                  className="w-3.5 h-3.5 text-slate-400"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M10 12l-4-4 4-4" />
-                </svg>
-              </Link>
-              <div className="flex flex-col gap-1">
-                <h1 className="text-base font-semibold text-slate-100 leading-none">
-                  Todas as Despesas
-                </h1>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        nomeNegocio={usuario.nome_negocio || "Lava Jato Gestão"}
+        usuarioSlug={usuarioSlug || ""}
+        offsetSemana={offsetSemana}
+        infoSemana={infoSemana}
+        navegarSemana={navegarSemana}
+        showUserMenu={showUserMenu}
+        setShowUserMenu={setShowUserMenu}
+      />
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
-        {/* Filtro de Semana */}
-        <div className="card p-3 mb-4">
-          <div className="flex items-center flex-col md:flex-row justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navegarSemana(offsetSemana + 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
-                title="Semana anterior"
-              >
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <div className="text-center min-w-[200px]">
-                <p className="text-xs text-slate-400">Semana</p>
-                <p className="text-sm font-medium text-slate-100">
-                  {infoSemana.inicioFormatado} - {infoSemana.fimFormatado}
-                </p>
-              </div>
-              <button
-                onClick={() => navegarSemana(Math.max(0, offsetSemana - 1))}
-                disabled={offsetSemana === 0}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Próxima semana"
-              >
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-            {offsetSemana > 0 && (
-              <button
-                onClick={() => navegarSemana(0)}
-                className="text-xs text-indigo-400 hover:text-indigo-300"
-              >
-                Voltar para semana atual
-              </button>
-            )}
-          </div>
-        </div>
+      <main className="pt-20 px-4 max-w-[1200px] mx-auto space-y-4">
+        {offsetSemana > 0 && (
+          <button
+            onClick={() => navegarSemana(0)}
+            className="text-xs text-accent hover:opacity-80"
+          >
+            Voltar para semana atual
+          </button>
+        )}
 
-        <div className="card">
-          <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-100 text-sm">
-              Despesas Registradas ({despesasFiltradas.length})
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <div
+            className="px-4 py-3 flex items-center justify-between"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <h2 className="font-mono-app font-semibold text-sm">
+              Despesas ({despesasFiltradas.length})
             </h2>
             <Link
               to="/despesas/novo"
-              className="btn-secondary py-1 px-3 text-xs h-auto min-h-0"
+              className="font-mono-app text-xs py-1.5 px-3 rounded-lg"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                color: "rgba(255,255,255,0.9)",
+              }}
             >
               + Nova Despesa
             </Link>
           </div>
 
-          <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/30 flex flex-wrap gap-2">
+          <div
+            className="px-4 py-3 flex flex-wrap gap-2"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          >
             <button
               onClick={() => setFiltroDia("todos")}
-              className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+              className={`font-mono-app text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                 filtroDia === "todos"
-                  ? "bg-indigo-600 text-white border-indigo-500"
-                  : "border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white"
+                  ? "text-accent"
+                  : ""
               }`}
+              style={
+                filtroDia === "todos"
+                  ? { borderColor: "var(--color-accent)", color: "var(--color-accent)" }
+                  : { borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }
+              }
             >
               Todos
             </button>
@@ -199,11 +175,14 @@ export default function DespesasIndexPage() {
               <button
                 key={dia.value}
                 onClick={() => setFiltroDia(dia.value)}
-                className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
-                  filtroDia === dia.value
-                    ? "bg-indigo-600 text-white border-indigo-500"
-                    : "border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white"
+                className={`font-mono-app text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                  filtroDia === dia.value ? "" : ""
                 }`}
+                style={
+                  filtroDia === dia.value
+                    ? { borderColor: "var(--color-accent)", color: "var(--color-accent)" }
+                    : { borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }
+                }
                 title={`Filtrar por ${dia.label}`}
               >
                 {dia.label}
@@ -213,43 +192,46 @@ export default function DespesasIndexPage() {
 
           {despesas.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-slate-400 text-sm">
+              <p className="font-mono-app text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
                 Nenhuma despesa cadastrada.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-700">
-                  <tr>
-                    <th className="px-4 py-2 font-medium text-xs">Descrição</th>
-                    <th className="px-4 py-2 font-medium text-xs text-right">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <th className="px-4 py-2 font-mono-app font-medium text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      Descrição
+                    </th>
+                    <th className="px-4 py-2 font-mono-app font-medium text-xs text-right" style={{ color: "rgba(255,255,255,0.35)" }}>
                       Valor
                     </th>
-                    <th className="px-4 py-2 font-medium text-xs text-right">
+                    <th className="px-4 py-2 font-mono-app font-medium text-xs text-right" style={{ color: "rgba(255,255,255,0.35)" }}>
                       Data
                     </th>
-                    <th className="px-4 py-2 font-medium text-xs">
+                    <th className="px-4 py-2 font-mono-app font-medium text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
                       Observações
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700">
+                <tbody>
                   {despesasFiltradas.map((despesa) => (
                     <tr
                       key={despesa.id}
-                      className="hover:bg-slate-800/50 transition-colors"
+                      className="transition-colors hover:bg-white/5"
+                      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
                     >
-                      <td className="px-4 py-2.5 text-slate-100 font-medium">
+                      <td className="px-4 py-2.5 font-mono-app font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>
                         {despesa.descricao}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-red-300 font-semibold whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-right font-mono-app font-semibold whitespace-nowrap" style={{ color: "rgba(239,68,68,0.9)" }}>
                         - R$ {despesa.valor.toFixed(2).replace(".", ",")}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-slate-300 whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-right font-mono-app whitespace-nowrap" style={{ color: "rgba(255,255,255,0.5)" }}>
                         {formatDatePtBr(despesa.data_despesa)}
                       </td>
-                      <td className="px-4 py-2.5 text-slate-300">
+                      <td className="px-4 py-2.5 font-mono-app" style={{ color: "rgba(255,255,255,0.5)" }}>
                         {despesa.observacoes || "-"}
                       </td>
                     </tr>
@@ -259,7 +241,8 @@ export default function DespesasIndexPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
+      <BottomNav />
     </div>
   );
 }

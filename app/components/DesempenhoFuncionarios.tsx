@@ -69,9 +69,15 @@ export function DesempenhoFuncionarios({
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <span
-                        className={`badge ${
-                          funcionario?.ativo ? "badge-success" : "badge-neutral"
-                        }`}
+                        className="text-xs font-medium px-2 py-0.5 rounded"
+                        style={{
+                          background: funcionario?.ativo
+                            ? "rgba(34,197,94,0.2)"
+                            : "rgba(239,68,68,0.2)",
+                          color: funcionario?.ativo
+                            ? "rgba(34,197,94,0.95)"
+                            : "rgba(239,68,68,0.95)",
+                        }}
                       >
                         {funcionario?.ativo ? "Ativo" : "Inativo"}
                       </span>

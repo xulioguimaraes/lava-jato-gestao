@@ -1,16 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Poppins:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('https://cdn.jsdelivr.net/npm/geist@1.2.2/dist/fonts/geist-mono/GeistMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
+  :root {
+    --color-deep: #0C0C0C;
+    --color-accent: #4D7C5F;
+    --color-surface: rgba(255, 255, 255, 0.03);
+    --color-border: rgba(255, 255, 255, 0.07);
+    --color-text-secondary: rgba(255, 255, 255, 0.4);
+    --color-text-tertiary: rgba(255, 255, 255, 0.2);
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'Geist Mono', monospace;
+  }
+
   body {
-    @apply font-sans antialiased bg-slate-900 text-slate-100;
-    font-family: 'Inter', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply antialiased text-white;
+    background-color: var(--color-deep);
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   
   * {
-    @apply border-slate-700;
+    border-color: rgba(255, 255, 255, 0.07);
   }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-mono-app {
+    font-family: var(--font-mono);
+  }
+  .text-secondary {
+    color: var(--color-text-secondary);
+  }
+  .text-tertiary {
+    color: var(--color-text-tertiary);
+  }
+  .text-accent {
+    color: var(--color-accent);
+  }
+  .bg-surface {
+    background-color: var(--color-surface);
+  }
+  .bg-deep {
+    background-color: var(--color-deep);
+  }
+  .border-subtle {
+    border-color: var(--color-border);
+  }
+  .hover-item {
+    transition: background-color 150ms ease;
+  }
+  .hover-item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+}
+
+/* Recharts overrides */
+.recharts-cartesian-axis-tick-value {
+  font-family: var(--font-mono) !important;
+  font-size: 0.65rem !important;
+  fill: rgba(255, 255, 255, 0.3) !important;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none !important;
 }
 
 @layer components {
