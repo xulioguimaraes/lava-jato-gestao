@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Link } from "@remix-run/react";
 
-const options = [
-  { label: "Lavagem de Carro", to: "/funcionarios/publico" },
-  { label: "Lavagem de Moto", to: "/funcionarios/publico" },
-  { label: "Lavagem de Tapete", to: "/funcionarios/publico" },
-  { label: "Registrar Despesa", to: "/despesas/novo" },
-];
+type FABProps = {
+  usuarioSlug?: string;
+};
 
-export function FAB() {
+export function FAB({ usuarioSlug }: FABProps) {
+  const options = [
+    { label: "Lavagem", to: usuarioSlug ? `/${usuarioSlug}` : "/dashboard" },
+    { label: "Despesa", to: "/despesas/novo" },
+    { label: "Vale", to: "/vales/novo" },
+  ];
   const [open, setOpen] = useState(false);
 
   return (
@@ -41,7 +43,8 @@ export function FAB() {
                   to={opt.to}
                   className="block w-full text-left px-6 py-3.5 font-mono-app text-sm hover-item"
                   style={{
-                    borderTop: i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                    borderTop:
+                      i > 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
                   }}
                   onClick={() => setOpen(false)}
                 >

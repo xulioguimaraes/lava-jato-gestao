@@ -21,6 +21,7 @@ import {
   calcularComissaoFuncionario,
   obterInfoSemana,
 } from "~/utils/lavagens.server";
+import { calcularTotalValesFuncionario } from "~/utils/vales.server";
 import { useRef, useState, useEffect } from "react";
 import { pageTitle } from "~/utils/meta";
 import { formatDatePtBr } from "~/utils/date";
@@ -55,16 +56,21 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     usuarioSlug = usuario?.slug || null;
   }
 
-  const [lavagens, comissao, infoSemana] = await Promise.all([
+  const [lavagens, comissao, totalVales, infoSemana] = await Promise.all([
     listarLavagensPorFuncionario(funcionario.id, offsetSemana, false, userId),
     calcularComissaoFuncionario(funcionario.id, offsetSemana, userId),
+    calcularTotalValesFuncionario(funcionario.id, offsetSemana, userId),
     Promise.resolve(obterInfoSemana(offsetSemana)),
   ]);
+
+  const valorLiquido = comissao.comissao - totalVales;
 
   return json({
     funcionario,
     lavagens,
     comissao,
+    totalVales,
+    valorLiquido,
     offsetSemana,
     infoSemana,
     usuarioSlug,
@@ -138,6 +144,8 @@ export default function FuncionarioPublico() {
     funcionario,
     lavagens,
     comissao,
+    totalVales,
+    valorLiquido,
     offsetSemana,
     infoSemana,
     usuarioSlug,
@@ -377,7 +385,7 @@ export default function FuncionarioPublico() {
 
         {/* KPIs */}
         <div
-          className="grid grid-cols-3 bg-surface rounded-md"
+          className="grid grid-cols-2 sm:grid-cols-4 bg-surface rounded-md"
           style={{ border: "1px solid rgba(255,255,255,0.07)" }}
         >
           <div className="px-5 py-4">
@@ -402,7 +410,7 @@ export default function FuncionarioPublico() {
               className="font-mono-app uppercase tracking-[0.12em] mb-2"
               style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
             >
-              SUA COMISSÃO ({comissao.porcentagem || 40}%)
+              COMISSÃO ({comissao.porcentagem || 40}%)
             </p>
             <p
               className="font-extrabold text-xl tracking-tight text-accent"
@@ -419,13 +427,30 @@ export default function FuncionarioPublico() {
               className="font-mono-app uppercase tracking-[0.12em] mb-2"
               style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
             >
-              LAVAGENS
+              VALES
             </p>
             <p
               className="font-extrabold text-xl tracking-tight"
-              style={{ fontFamily: "'Poppins', sans-serif" }}
+              style={{ fontFamily: "'Poppins', sans-serif", color: "rgba(255,255,255,0.6)" }}
             >
-              <AnimatedCounter value={lavagens.length} />
+              <AnimatedCounter value={totalVales} prefix="R$ " isCurrency />
+            </p>
+          </div>
+          <div
+            className="px-5 py-4"
+            style={{ borderLeft: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            <p
+              className="font-mono-app uppercase tracking-[0.12em] mb-2"
+              style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
+            >
+              VALOR A RECEBER
+            </p>
+            <p
+              className="font-extrabold text-xl tracking-tight"
+              style={{ fontFamily: "'Poppins', sans-serif", color: "#4D7C5F" }}
+            >
+              <AnimatedCounter value={valorLiquido} prefix="R$ " isCurrency />
             </p>
           </div>
         </div>

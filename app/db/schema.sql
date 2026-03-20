@@ -43,8 +43,22 @@ CREATE TABLE IF NOT EXISTS despesas (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabela de vales (adiantamentos de funcionários)
+CREATE TABLE IF NOT EXISTS vales (
+  id TEXT PRIMARY KEY,
+  funcionario_id TEXT NOT NULL,
+  valor REAL NOT NULL,
+  data_vale DATE NOT NULL,
+  observacoes TEXT,
+  user_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id)
+);
+
 -- Índices para melhor performance
 CREATE INDEX IF NOT EXISTS idx_lavagens_funcionario ON lavagens(funcionario_id);
 CREATE INDEX IF NOT EXISTS idx_lavagens_data ON lavagens(data_lavagem);
 CREATE INDEX IF NOT EXISTS idx_despesas_data ON despesas(data_despesa);
+CREATE INDEX IF NOT EXISTS idx_vales_funcionario ON vales(funcionario_id);
+CREATE INDEX IF NOT EXISTS idx_vales_data ON vales(data_vale);
 

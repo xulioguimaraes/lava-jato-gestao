@@ -4,6 +4,9 @@ type ItemTotal = {
   funcionario_id: string;
   funcionario_nome: string;
   total: number;
+  totalVales?: number;
+  comissao?: number;
+  valorLiquido?: number;
 };
 
 type Funcionario = {
@@ -47,7 +50,9 @@ export function FuncionariosList({ itens, funcionarios }: Props) {
       {itens.map((item) => {
         const funcionario = funcionarios.find((f) => f.id === item.funcionario_id);
         const perc = funcionario?.porcentagem_comissao ?? 40;
-        const comissao = item.total * (perc / 100);
+        const comissao = item.comissao ?? item.total * (perc / 100);
+        const totalVales = item.totalVales ?? 0;
+        const valorLiquido = item.valorLiquido ?? comissao - totalVales;
 
         return (
           <Link
@@ -87,7 +92,7 @@ export function FuncionariosList({ itens, funcionarios }: Props) {
                   />
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                   <span
                     className="font-mono-app text-xs"
                     style={{ color: "rgba(255,255,255,0.5)" }}
@@ -98,7 +103,21 @@ export function FuncionariosList({ itens, funcionarios }: Props) {
                     className="font-mono-app text-xs text-accent"
                     style={{ color: "#4D7C5F" }}
                   >
-                    R$ {formatCurrency(comissao)} comissão ({perc}%)
+                    R$ {formatCurrency(comissao)} comissão
+                  </span>
+                  {totalVales > 0 && (
+                    <span
+                      className="font-mono-app text-xs"
+                      style={{ color: "rgba(255,255,255,0.4)" }}
+                    >
+                      R$ {formatCurrency(totalVales)} vales
+                    </span>
+                  )}
+                  <span
+                    className="font-mono-app text-xs font-medium"
+                    style={{ color: "#4D7C5F" }}
+                  >
+                    R$ {formatCurrency(valorLiquido)} a receber
                   </span>
                 </div>
               </div>

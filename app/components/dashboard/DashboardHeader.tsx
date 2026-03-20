@@ -44,9 +44,12 @@ export function DashboardHeader({
       style={{ borderColor: "rgba(255,255,255,0.07)" }}
     >
       <div className="flex items-center justify-between px-4 h-14 max-w-[1200px] mx-auto">
-        <span className="font-display font-bold text-sm tracking-tight truncate max-w-[140px]">
+        <a
+          href="/dashboard"
+          className="font-display font-bold text-sm tracking-tight truncate max-w-[140px]"
+        >
           {nomeNegocio || "Lava Jato"}
-        </span>
+        </a>
 
         <div className="flex items-center gap-3">
           <button
@@ -164,7 +167,7 @@ export function DashboardHeader({
               </span>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </header>
   );

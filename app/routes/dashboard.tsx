@@ -11,6 +11,7 @@ import {
   calcularTotalSemana,
   obterInfoSemana,
 } from "~/utils/lavagens.server";
+import { calcularValesPorFuncionariosSemana } from "~/utils/vales.server";
 import { Toast } from "~/components/Toast";
 import { listarFuncionarios } from "~/utils/funcionarios.server";
 import { fazerLogout } from "~/utils/session.server";
@@ -66,9 +67,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return sum + l.preco * (perc / 100);
   }, 0);
 
+  const funcionarioIds = totais.porFuncionario.map((p) => p.funcionario_id);
+  const valesPorFuncionario = await calcularValesPorFuncionariosSemana(
+    funcionarioIds,
+    offsetSemana,
+    usuario.id
+  );
+
+  const porFuncionarioComVales = totais.porFuncionario.map((p) => {
+    const perc = porcentagens.get(p.funcionario_id) ?? 40;
+    const comissao = p.total * (perc / 100);
+    const totalVales = valesPorFuncionario[p.funcionario_id] ?? 0;
+    const valorLiquido = comissao - totalVales;
+    return {
+      ...p,
+      totalVales,
+      comissao,
+      valorLiquido,
+    };
+  });
+
   return json({
     lavagens,
-    totais,
+    totais: { ...totais, porFuncionario: porFuncionarioComVales },
     funcionarios: funcionariosAtivos,
     despesas,
     totalDespesas,
@@ -263,7 +284,7 @@ export default function Dashboard() {
       </main>
 
       <BottomNav />
-      <FAB />
+      <FAB usuarioSlug={usuarioSlug ?? undefined} />
     </div>
   );
 }

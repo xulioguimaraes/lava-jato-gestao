@@ -1,6 +1,6 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
-import { Form, useActionData, useNavigation } from "@remix-run/react";
+import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
 import { verificarLogin } from "~/utils/auth.server";
 import { criarSessaoUsuario, obterUsuario } from "~/utils/session.server";
 import { pageTitle } from "~/utils/meta";

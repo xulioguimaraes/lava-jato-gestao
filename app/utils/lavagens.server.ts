@@ -187,7 +187,7 @@ export async function listarLavagensPorFuncionario(
 
   const result = await db.execute({
     sql: `
-      SELECT id, funcionario_id, descricao, preco, foto_url, data_lavagem, created_at, user_id
+      SELECT id, funcionario_id, descricao, preco, foto_url, data_lavagem, forma_pagamento, created_at, user_id
       FROM lavagens
       WHERE funcionario_id = ? AND data_lavagem >= ? AND data_lavagem <= ?${filtroUser}
       ORDER BY data_lavagem DESC, created_at DESC
@@ -386,16 +386,16 @@ export async function atualizarLavagem(
   id: string,
   descricao: string,
   preco: number,
-  fotoUrl: string | null,
-  dataLavagem: string
+  dataLavagem: string,
+  formaPagamento: string | null
 ): Promise<Lavagem> {
   await db.execute({
     sql: `
       UPDATE lavagens 
-      SET descricao = ?, preco = ?, foto_url = ?, data_lavagem = ?
+      SET descricao = ?, preco = ?, data_lavagem = ?, forma_pagamento = ?
       WHERE id = ?
     `,
-    args: [descricao, preco, fotoUrl, dataLavagem, id],
+    args: [descricao, preco, dataLavagem, formaPagamento, id],
   });
 
   const lavagem = await buscarLavagemPorId(id);

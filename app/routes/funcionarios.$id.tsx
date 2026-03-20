@@ -4,6 +4,7 @@ import {
   Form,
   useLoaderData,
   useNavigation,
+  useActionData,
   Link,
   useSearchParams,
 } from "@remix-run/react";
@@ -17,9 +18,12 @@ import {
   calcularComissaoFuncionario,
   atualizarLavagem,
   excluirLavagem,
-  buscarLavagemPorId,
   obterInfoSemana,
 } from "~/utils/lavagens.server";
+import {
+  listarValesPorFuncionario,
+  calcularTotalValesFuncionario,
+} from "~/utils/vales.server";
 import { useState, useEffect } from "react";
 import { formatDatePtBr } from "~/utils/date";
 import { Toast } from "~/components/Toast";
@@ -39,15 +43,22 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const infoSemana = obterInfoSemana(offsetSemana);
 
   // Não trazer fotos para evitar payload grande
-  const [lavagens, comissao] = await Promise.all([
+  const [lavagens, comissao, vales, totalVales] = await Promise.all([
     listarLavagensPorFuncionario(funcionario.id, offsetSemana, false, usuario.id),
     calcularComissaoFuncionario(funcionario.id, offsetSemana, usuario.id),
+    listarValesPorFuncionario(funcionario.id, offsetSemana, usuario.id),
+    calcularTotalValesFuncionario(funcionario.id, offsetSemana, usuario.id),
   ]);
+
+  const valorLiquido = comissao.comissao - totalVales;
 
   return json({
     funcionario,
     lavagens,
     comissao,
+    vales,
+    totalVales,
+    valorLiquido,
     usuario,
     usuarioSlug: usuario.slug || "",
     offsetSemana,
@@ -93,7 +104,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const descricao = formData.get("descricao") as string;
     const preco = formData.get("preco") as string;
     const dataLavagem = formData.get("data_lavagem") as string;
-    const foto = formData.get("foto") as File | null;
+    const formaPagamento = formData.get("forma_pagamento") as string | null;
 
     if (!descricao || !preco || !dataLavagem) {
       return json(
@@ -107,26 +118,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ erro: "Preço inválido" }, { status: 400 });
     }
 
-    let fotoUrl: string | null = null;
-    if (foto && foto.size > 0) {
-      const arrayBuffer = await foto.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const base64 = buffer.toString("base64");
-      fotoUrl = `data:${foto.type};base64,${base64}`;
-    } else {
-      // Se não enviou nova foto, manter a foto existente
-      const lavagemExistente = await buscarLavagemPorId(lavagemId);
-      if (lavagemExistente) {
-        fotoUrl = lavagemExistente.foto_url;
-      }
-    }
+    const formasValidas = ["pix", "dinheiro"];
+    const formaPagamentoValida = formaPagamento && formasValidas.includes(formaPagamento)
+      ? formaPagamento
+      : null;
 
     await atualizarLavagem(
       lavagemId,
       descricao,
       precoNum,
-      fotoUrl,
       dataLavagem,
+      formaPagamentoValida,
     );
     const url = new URL(request.url);
     url.searchParams.set("toast", "saved");
@@ -143,31 +145,79 @@ export async function action({ request, params }: ActionFunctionArgs) {
   return null;
 }
 
+const inputStyle = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.1)",
+};
+
 export default function FuncionarioDetalhes() {
   const {
     funcionario,
     lavagens,
     comissao,
+    vales,
+    totalVales,
+    valorLiquido,
     usuario,
     usuarioSlug,
     offsetSemana,
     infoSemana,
   } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const isSubmitting =
     navigation.state === "submitting" || navigation.state === "loading";
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingLavagemId, setEditingLavagemId] = useState<string | null>(null);
+  const [showFuncionarioModal, setShowFuncionarioModal] = useState(false);
+  const [editingLavagem, setEditingLavagem] = useState<{
+    id: string;
+    descricao: string;
+    preco: number;
+    data_lavagem: string;
+    forma_pagamento?: string | null;
+  } | null>(null);
+  const [precoFormatado, setPrecoFormatado] = useState("");
   const [showToast, setShowToast] = useState(false);
+
+  const formatarMoeda = (valor: string): string => {
+    const apenasDigitos = valor.replace(/\D/g, "");
+    if (apenasDigitos === "") return "";
+    const valorNumerico = parseFloat(apenasDigitos) / 100;
+    return valorNumerico.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const desformatarMoeda = (valor: string): string => {
+    const apenasDigitos = valor.replace(/\D/g, "");
+    if (apenasDigitos === "") return "";
+    const valorNumerico = parseFloat(apenasDigitos) / 100;
+    return valorNumerico.toFixed(2);
+  };
+
+  const handlePrecoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPrecoFormatado(formatarMoeda(e.target.value));
+  };
+
+  const openLavagemEdit = (lavagem: { id: string; descricao: string; preco: number; data_lavagem: string; forma_pagamento?: string | null }) => {
+    setEditingLavagem(lavagem);
+    setPrecoFormatado(
+      lavagem.preco.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
+  };
 
   useEffect(() => {
     const toastParam = searchParams.get("toast");
     if (toastParam === "saved") {
       setShowToast(true);
-      setIsEditing(false);
-      setEditingLavagemId(null);
+      setShowFuncionarioModal(false);
+      setEditingLavagem(null);
+      setPrecoFormatado("");
       const newParams = new URLSearchParams(searchParams);
       newParams.delete("toast");
       setSearchParams(newParams, { replace: true });
@@ -236,77 +286,312 @@ export default function FuncionarioDetalhes() {
           </p>
         </div>
 
-        <div className="card p-4 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex gap-2">
-              {!isEditing ? (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  disabled={isSubmitting}
-                  className="btn-secondary text-xs py-1.5 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
+        <div
+          className="rounded-xl p-4 mb-4 overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <p
+              className="font-mono-app uppercase tracking-[0.12em]"
+              style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
+            >
+              DADOS DO FUNCIONÁRIO
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowFuncionarioModal(true)}
+              disabled={isSubmitting}
+              className="font-mono-app text-xs py-1.5 px-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                color: "rgba(255,255,255,0.9)",
+              }}
+            >
+              Editar
+            </button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <p className="font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>Nome</p>
+              <p className="font-mono-app text-sm font-medium" style={{ color: "rgba(255,255,255,0.9)" }}>
+                {funcionario.nome}
+              </p>
+            </div>
+            {funcionario.telefone && (
+              <div>
+                <p className="font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>Telefone</p>
+                <a
+                  href={formatarTelefoneWhatsApp(funcionario.telefone) || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono-app text-sm font-medium flex items-center gap-1.5 hover:opacity-80"
+                  style={{ color: "#4D7C5F" }}
                 >
-                  Editar
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(false)}
-                  disabled={isSubmitting}
-                  className="btn-secondary text-xs py-1.5 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancelar
-                </button>
-              )}
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                  </svg>
+                  {funcionario.telefone}
+                </a>
+              </div>
+            )}
+            <div>
+              <p className="font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>Status</p>
+              <span
+                className="font-mono-app text-xs px-2 py-0.5 rounded"
+                style={{
+                  background: funcionario.ativo ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)",
+                  color: funcionario.ativo ? "rgba(34,197,94,0.95)" : "rgba(239,68,68,0.95)",
+                }}
+              >
+                {funcionario.ativo ? "Ativo" : "Inativo"}
+              </span>
             </div>
           </div>
+        </div>
 
-          {!isEditing ? (
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-slate-400 mb-1">Nome</p>
-                <p className="text-sm font-medium text-slate-100">
-                  {funcionario.nome}
-                </p>
-              </div>
-              {funcionario.telefone && (
-                <div>
-                  <p className="text-xs text-slate-400 mb-1">Telefone</p>
-                  <a
-                    href={formatarTelefoneWhatsApp(funcionario.telefone) || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                    </svg>
-                    {funcionario.telefone}
-                  </a>
-                </div>
-              )}
-              <div>
-                <p className="text-xs text-slate-400 mb-1">Status</p>
-                <span
-                  className={`badge ${
-                    funcionario.ativo === 1 ? "badge-success" : "badge-neutral"
-                  }`}
-                >
-                  {funcionario.ativo === 1 ? "Ativo" : "Inativo"}
-                </span>
-              </div>
+        {/* Resumo da Semana */}
+        <div
+          className="rounded-xl p-4 mb-4 overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <p
+            className="font-mono-app uppercase tracking-[0.12em] mb-3"
+            style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
+          >
+            RESUMO DA SEMANA
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>Total Lavado</p>
+              <p className="font-mono-app text-lg font-bold" style={{ color: "rgba(255,255,255,0.9)" }}>
+                R$ {comissao.total.toFixed(2).replace(".", ",")}
+              </p>
             </div>
+            <div>
+              <p className="font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                Comissão ({comissao.porcentagem || 40}%)
+              </p>
+              <p className="font-mono-app text-lg font-bold" style={{ color: "#4D7C5F" }}>
+                R$ {comissao.comissao.toFixed(2).replace(".", ",")}
+              </p>
+            </div>
+            <div>
+              <p className="font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>Vales</p>
+              <p className="font-mono-app text-lg font-bold" style={{ color: "rgba(239,68,68,0.9)" }}>
+                - R$ {totalVales.toFixed(2).replace(".", ",")}
+              </p>
+            </div>
+            <div>
+              <p className="font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>Valor a receber</p>
+              <p
+                className="font-mono-app text-lg font-bold"
+                style={{
+                  color: valorLiquido >= 0 ? "rgba(34,197,94,0.95)" : "rgba(239,68,68,0.95)",
+                }}
+              >
+                R$ {valorLiquido.toFixed(2).replace(".", ",")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Vales da Semana */}
+        <div
+          className="rounded-xl p-4 mb-4 overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <p
+              className="font-mono-app uppercase tracking-[0.12em]"
+              style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
+            >
+              VALES DA SEMANA ({vales.length})
+            </p>
+            <Link
+              to={`/vales/novo?funcionario=${funcionario.id}`}
+              className="font-mono-app text-xs py-1.5 px-3 rounded-lg"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                color: "rgba(255,255,255,0.9)",
+              }}
+            >
+              + Novo Vale
+            </Link>
+          </div>
+          {vales.length === 0 ? (
+            <p className="font-mono-app text-center py-6 text-sm" style={{ color: "rgba(255,255,255,0.35)" }}>
+              Nenhum vale registrado esta semana
+            </p>
           ) : (
-            <Form method="post" className="space-y-3">
-              <input type="hidden" name="intent" value="update" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="nome"
-                    className="block text-xs font-medium text-slate-300 mb-1"
+            <div className="space-y-2">
+              {vales.map((vale) => (
+                <div
+                  key={vale.id}
+                  className="flex justify-between items-center p-3 rounded-lg"
+                  style={{
+                    background: "rgba(239,68,68,0.06)",
+                    border: "1px solid rgba(239,68,68,0.15)",
+                  }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono-app text-sm" style={{ color: "rgba(255,255,255,0.9)" }}>
+                      {formatDatePtBr(vale.data_vale)}
+                    </p>
+                    {vale.observacoes && (
+                      <p className="font-mono-app text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {vale.observacoes}
+                      </p>
+                    )}
+                  </div>
+                  <p className="font-mono-app font-semibold text-sm" style={{ color: "rgba(239,68,68,0.95)" }}>
+                    - R$ {vale.valor.toFixed(2).replace(".", ",")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Lavagens */}
+        <div
+          className="rounded-xl p-4 overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <p
+            className="font-mono-app uppercase tracking-[0.12em] mb-3"
+            style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.3)" }}
+          >
+            LAVAGENS DA SEMANA ({lavagens.length})
+          </p>
+          {lavagens.length === 0 ? (
+            <p className="font-mono-app text-center py-8 text-sm" style={{ color: "rgba(255,255,255,0.35)" }}>
+              Nenhuma lavagem registrada esta semana
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {lavagens.map((lavagem) => (
+                <div
+                  key={lavagem.id}
+                  className="flex justify-between items-center p-3 rounded-lg transition-colors hover:bg-white/5"
+                  style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono-app font-medium text-sm" style={{ color: "rgba(255,255,255,0.9)" }}>
+                      {lavagem.descricao}
+                    </p>
+                    <p className="font-mono-app text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+                      {formatDatePtBr(lavagem.data_lavagem)}
+                      {lavagem.forma_pagamento && (
+                        <> • {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}</>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <p className="font-mono-app font-semibold text-sm" style={{ color: "rgba(255,255,255,0.9)" }}>
+                      R$ {lavagem.preco.toFixed(2).replace(".", ",")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => openLavagemEdit(lavagem)}
+                      disabled={isSubmitting}
+                      className="font-mono-app text-xs py-1 px-2 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
+                      style={{
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        color: "rgba(255,255,255,0.7)",
+                      }}
+                    >
+                      Editar
+                    </button>
+                    <Form method="post" className="inline">
+                      <input type="hidden" name="intent" value="deleteLavagem" />
+                      <input type="hidden" name="lavagemId" value={lavagem.id} />
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="font-mono-app text-xs py-1 px-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{
+                          background: "rgba(239,68,68,0.15)",
+                          border: "1px solid rgba(239,68,68,0.3)",
+                          color: "rgba(239,68,68,0.95)",
+                        }}
+                        onClick={(e) => {
+                          if (!confirm("Tem certeza que deseja excluir esta lavagem?")) {
+                            e.preventDefault();
+                          }
+                        }}
+                      >
+                        Excluir
+                      </button>
+                    </Form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+      <BottomNav />
+
+      {/* Bottom Sheet - Editar Funcionário */}
+      {showFuncionarioModal && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(0,0,0,0.6)" }}
+            onClick={() => setShowFuncionarioModal(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-y-auto"
+            style={{
+              background: "#141414",
+              borderTopLeftRadius: 12,
+              borderTopRightRadius: 12,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div
+              className="w-10 h-1 mx-auto mt-3 rounded-full"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
+            <div className="px-6 pt-5 pb-6">
+              <h3 className="font-display font-bold text-sm">Editar Funcionário</h3>
+              <p className="font-mono-app mt-1" style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.3)" }}>
+                Atualize os dados do funcionário
+              </p>
+
+              <Form method="post" className="space-y-4 mt-5">
+                <input type="hidden" name="intent" value="update" />
+                {actionData && "erro" in actionData && (
+                  <div
+                    className="px-3 py-2 rounded text-sm"
+                    style={{
+                      background: "rgba(248,113,113,0.15)",
+                      border: "1px solid rgba(248,113,113,0.3)",
+                      color: "#fca5a5",
+                    }}
                   >
+                    {actionData.erro}
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="nome" className="block font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>
                     Nome *
                   </label>
                   <input
@@ -315,14 +600,13 @@ export default function FuncionarioDetalhes() {
                     name="nome"
                     defaultValue={funcionario.nome}
                     required
-                    className="input-field"
+                    className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                    style={inputStyle}
                   />
                 </div>
+
                 <div>
-                  <label
-                    htmlFor="telefone"
-                    className="block text-xs font-medium text-slate-300 mb-1"
-                  >
+                  <label htmlFor="telefone" className="block font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>
                     Telefone
                   </label>
                   <input
@@ -330,15 +614,14 @@ export default function FuncionarioDetalhes() {
                     id="telefone"
                     name="telefone"
                     defaultValue={funcionario.telefone || ""}
-                    className="input-field"
                     placeholder="(00) 00000-0000"
+                    className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                    style={inputStyle}
                   />
                 </div>
+
                 <div>
-                  <label
-                    htmlFor="porcentagem_comissao"
-                    className="block text-xs font-medium text-slate-300 mb-1"
-                  >
+                  <label htmlFor="porcentagem_comissao" className="block font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>
                     Porcentagem de Comissão (%)
                   </label>
                   <div className="relative">
@@ -350,280 +633,199 @@ export default function FuncionarioDetalhes() {
                       min="0"
                       max="100"
                       step="0.1"
-                      className="input-field pr-8"
+                      className="w-full px-3 py-2 pr-8 rounded font-mono-app text-sm"
+                      style={inputStyle}
                     />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono-app text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
                       %
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Valor padrão: 40%
-                  </p>
                 </div>
-                <div className="flex items-center">
+
+                <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     id="ativo"
                     name="ativo"
                     defaultChecked={funcionario.ativo === 1}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-600 rounded bg-slate-800"
+                    className="h-4 w-4 rounded"
+                    style={{ accentColor: "#4D7C5F" }}
                   />
-                  <label
-                    htmlFor="ativo"
-                    className="ml-2 block text-xs text-slate-300"
-                  >
-                    Ativo
+                  <label htmlFor="ativo" className="font-mono-app text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+                    Funcionário ativo
                   </label>
                 </div>
-              </div>
-              <div className="flex gap-2 pt-2 border-t border-slate-700">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? "Salvando..." : "Salvar Alterações"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  disabled={isSubmitting}
-                  className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </Form>
-          )}
-        </div>
 
-        {/* Resumo da Semana */}
-        <div className="card p-4 mb-4">
-          <h2 className="text-base font-semibold text-slate-100 mb-3">
-            Resumo da Semana
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs text-slate-400">Total Lavado</p>
-              <p className="text-lg font-bold text-slate-100">
-                R$ {comissao.total.toFixed(2).replace(".", ",")}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">
-                Comissão ({comissao.porcentagem || 40}%)
-              </p>
-              <p className="text-lg font-bold text-emerald-400">
-                R$ {comissao.comissao.toFixed(2).replace(".", ",")}
-              </p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFuncionarioModal(false)}
+                    className="flex-1 px-4 py-2.5 rounded font-mono-app text-sm"
+                    style={{ border: "1px solid rgba(255,255,255,0.2)" }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2.5 rounded font-mono-app text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: "#4D7C5F", color: "#0C0C0C" }}
+                  >
+                    {isSubmitting ? "Salvando..." : "Salvar"}
+                  </button>
+                </div>
+              </Form>
             </div>
           </div>
-        </div>
+        </>
+      )}
 
-        {/* Lavagens */}
-        <div className="card p-4">
-          <h2 className="text-base font-semibold text-slate-100 mb-3">
-            Lavagens da Semana
-          </h2>
-          {lavagens.length === 0 ? (
-            <p className="text-slate-400 text-center py-6 text-sm">
-              Nenhuma lavagem registrada esta semana
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {lavagens.map((lavagem) => (
-                <div
-                  key={lavagem.id}
-                  className="border border-slate-700 rounded-lg p-3 hover:bg-slate-800/50 transition-colors"
-                >
-                  {editingLavagemId === lavagem.id ? (
-                    <Form
-                      method="post"
-                      encType="multipart/form-data"
-                      className="space-y-3"
-                    >
-                      <input
-                        type="hidden"
-                        name="intent"
-                        value="updateLavagem"
-                      />
-                      <input
-                        type="hidden"
-                        name="lavagemId"
-                        value={lavagem.id}
-                      />
+      {/* Bottom Sheet - Editar Lavagem */}
+      {editingLavagem && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(0,0,0,0.6)" }}
+            onClick={() => {
+              setEditingLavagem(null);
+              setPrecoFormatado("");
+            }}
+            aria-hidden="true"
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-y-auto"
+            style={{
+              background: "#141414",
+              borderTopLeftRadius: 12,
+              borderTopRightRadius: 12,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div
+              className="w-10 h-1 mx-auto mt-3 rounded-full"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            />
+            <div className="px-6 pt-5 pb-6">
+              <h3 className="font-display font-bold text-sm">Editar Lavagem</h3>
+              <p className="font-mono-app mt-1" style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.3)" }}>
+                Atualize os dados da lavagem
+              </p>
 
-                      <div>
-                        <label
-                          htmlFor={`descricao-${lavagem.id}`}
-                          className="block text-xs font-medium text-slate-300 mb-1"
-                        >
-                          Descrição *
-                        </label>
-                        <input
-                          type="text"
-                          id={`descricao-${lavagem.id}`}
-                          name="descricao"
-                          defaultValue={lavagem.descricao}
-                          required
-                          className="input-field"
-                        />
-                      </div>
+              <Form method="post" className="space-y-4 mt-5">
+                <input type="hidden" name="intent" value="updateLavagem" />
+                <input type="hidden" name="lavagemId" value={editingLavagem.id} />
+                {actionData && "erro" in actionData && (
+                  <div
+                    className="px-3 py-2 rounded text-sm"
+                    style={{
+                      background: "rgba(248,113,113,0.15)",
+                      border: "1px solid rgba(248,113,113,0.3)",
+                      color: "#fca5a5",
+                    }}
+                  >
+                    {actionData.erro}
+                  </div>
+                )}
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label
-                            htmlFor={`preco-${lavagem.id}`}
-                            className="block text-xs font-medium text-slate-300 mb-1"
-                          >
-                            Preço (R$) *
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
-                              R$
-                            </span>
-                            <input
-                              type="number"
-                              id={`preco-${lavagem.id}`}
-                              name="preco"
-                              defaultValue={lavagem.preco}
-                              step="0.01"
-                              min="0.01"
-                              required
-                              className="input-field pl-8"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor={`data-${lavagem.id}`}
-                            className="block text-xs font-medium text-slate-300 mb-1"
-                          >
-                            Data *
-                          </label>
-                          <input
-                            type="date"
-                            id={`data-${lavagem.id}`}
-                            name="data_lavagem"
-                            defaultValue={lavagem.data_lavagem}
-                            required
-                            className="input-field"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor={`foto-${lavagem.id}`}
-                          className="block text-xs font-medium text-slate-300 mb-1"
-                        >
-                          Nova Foto (opcional)
-                        </label>
-                        <input
-                          type="file"
-                          id={`foto-${lavagem.id}`}
-                          name="foto"
-                          accept="image/*"
-                          className="input-field text-xs"
-                        />
-                        {lavagem.foto_url && (
-                          <p className="text-xs text-slate-500 mt-1">
-                            Deixe em branco para manter a foto atual
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2 pt-2 border-t border-slate-700">
-                        <button
-                          type="submit"
-                          disabled={isSubmitting}
-                          className="btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isSubmitting ? "Salvando..." : "Salvar"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingLavagemId(null)}
-                          disabled={isSubmitting}
-                          className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </Form>
-                  ) : (
-                    <>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-100 text-sm">
-                            {lavagem.descricao}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {formatDatePtBr(lavagem.data_lavagem)}
-                            {lavagem.forma_pagamento && (
-                              <>
-                                {" "}
-                                • Forma:{" "}
-                                {lavagem.forma_pagamento === "pix"
-                                  ? "Pix"
-                                  : "Dinheiro"}
-                              </>
-                            )}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-slate-100 text-sm">
-                            R$ {lavagem.preco.toFixed(2).replace(".", ",")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700">
-                        <button
-                          onClick={() => setEditingLavagemId(lavagem.id)}
-                          disabled={isSubmitting}
-                          className="btn-secondary text-xs py-1 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Editar
-                        </button>
-                        <Form method="post" className="inline">
-                          <input
-                            type="hidden"
-                            name="intent"
-                            value="deleteLavagem"
-                          />
-                          <input
-                            type="hidden"
-                            name="lavagemId"
-                            value={lavagem.id}
-                          />
-                          <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="btn-danger text-xs py-1 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={(e) => {
-                              if (
-                                !confirm(
-                                  "Tem certeza que deseja excluir esta lavagem?",
-                                )
-                              ) {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            Excluir
-                          </button>
-                        </Form>
-                      </div>
-                    </>
-                  )}
+                <div>
+                  <label htmlFor="descricao" className="block font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+                    Descrição *
+                  </label>
+                  <input
+                    type="text"
+                    id="descricao"
+                    name="descricao"
+                    defaultValue={editingLavagem.descricao}
+                    required
+                    placeholder="Ex: Carro completo, Moto..."
+                    className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                    style={inputStyle}
+                  />
                 </div>
-              ))}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="preco" className="block font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+                      Preço (R$) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono-app text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        R$
+                      </span>
+                      <input
+                        type="text"
+                        id="preco"
+                        value={precoFormatado}
+                        onChange={handlePrecoChange}
+                        required
+                        placeholder="0,00"
+                        inputMode="numeric"
+                        className="w-full pl-9 pr-3 py-2 rounded font-mono-app text-sm"
+                        style={inputStyle}
+                      />
+                      <input type="hidden" name="preco" value={desformatarMoeda(precoFormatado)} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="data_lavagem" className="block font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+                      Data *
+                    </label>
+                    <input
+                      type="date"
+                      id="data_lavagem"
+                      name="data_lavagem"
+                      defaultValue={editingLavagem.data_lavagem}
+                      required
+                      className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="forma_pagamento" className="block font-mono-app text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+                    Forma de Pagamento *
+                  </label>
+                  <select
+                    id="forma_pagamento"
+                    name="forma_pagamento"
+                    required
+                    defaultValue={editingLavagem.forma_pagamento || "pix"}
+                    className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                    style={inputStyle}
+                  >
+                    <option value="pix">Pix</option>
+                    <option value="dinheiro">Dinheiro</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingLavagem(null);
+                      setPrecoFormatado("");
+                    }}
+                    className="flex-1 px-4 py-2.5 rounded font-mono-app text-sm"
+                    style={{ border: "1px solid rgba(255,255,255,0.2)" }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2.5 rounded font-mono-app text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: "#4D7C5F", color: "#0C0C0C" }}
+                  >
+                    {isSubmitting ? "Salvando..." : "Salvar"}
+                  </button>
+                </div>
+              </Form>
             </div>
-          )}
-        </div>
-      </main>
-      <BottomNav />
+          </div>
+        </>
+      )}
     </div>
   );
 }
