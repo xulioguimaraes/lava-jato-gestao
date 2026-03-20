@@ -40,6 +40,49 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
+function CustomXAxisTick({
+  x,
+  y,
+  payload,
+  index,
+  data,
+}: {
+  x: number | string;
+  y: number | string;
+  payload?: { value: string };
+  index?: number;
+  data: { day: string; value: number }[];
+}) {
+  const value = data[index ?? 0]?.value ?? 0;
+  return (
+    <g transform={`translate(${Number(x)},${Number(y)})`}>
+      <text
+        x={0}
+        y={0}
+        dy={16}
+        textAnchor="middle"
+        className="font-mono-app"
+        style={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }}
+      >
+        {payload?.value ?? ""}
+      </text>
+      <text
+        x={0}
+        y={0}
+        dy={28}
+        textAnchor="middle"
+        className="font-mono-app"
+        style={{
+          fontSize: 9,
+          fill: value > 0 ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)",
+        }}
+      >
+        R$ {value.toFixed(0)}
+      </text>
+    </g>
+  );
+}
+
 export function WeekChart({ lavagens }: Props) {
   const porDia = diasOrdem.map((d) => ({
     day: d.label,
@@ -67,12 +110,12 @@ export function WeekChart({ lavagens }: Props) {
       </p>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={porDia} barCategoryGap="20%">
+          <BarChart data={porDia} barCategoryGap="20%" margin={{ bottom: 36 }}>
             <XAxis
               dataKey="day"
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 10 }}
+              tick={(props) => <CustomXAxisTick {...props} data={porDia} />}
             />
             <ReferenceLine
               y={0}

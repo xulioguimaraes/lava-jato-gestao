@@ -1,5 +1,9 @@
 import { json, redirect } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import type {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  MetaFunction,
+} from "@remix-run/node";
 import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
 import { verificarLogin } from "~/utils/auth.server";
 import { criarSessaoUsuario, obterUsuario } from "~/utils/session.server";
@@ -41,28 +45,53 @@ export default function Login() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
+  const inputStyle = {
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.1)",
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 p-3">
+    <div className="min-h-screen flex items-center justify-center bg-deep p-4">
       <div className="w-full max-w-md">
-        <div className="card p-6">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-900/30 rounded-lg mb-3">
-              <svg className="w-5 h-5 text-indigo-400" viewBox="0 0 16 16" fill="currentColor">
-                <rect x="2" y="2" width="5" height="5" rx="0.5"/>
-                <rect x="9" y="2" width="5" height="5" rx="0.5"/>
-                <rect x="2" y="9" width="5" height="5" rx="0.5"/>
-                <rect x="9" y="9" width="5" height="5" rx="0.5"/>
+        <div
+          className="bg-surface rounded-md p-6 md:p-8"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <div className="flex flex-col items-center mb-6">
+            <div
+              className="w-10 h-10 rounded-md flex items-center justify-center mb-4"
+              style={{ background: "rgba(77,124,95,0.15)" }}
+            >
+              <svg
+                className="w-5 h-5"
+                style={{ color: "#4D7C5F" }}
+                viewBox="0 0 16 16"
+                fill="currentColor"
+              >
+                <rect x="2" y="2" width="5" height="5" rx="0.5" />
+                <rect x="9" y="2" width="5" height="5" rx="0.5" />
+                <rect x="2" y="9" width="5" height="5" rx="0.5" />
+                <rect x="9" y="9" width="5" height="5" rx="0.5" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-slate-100 mb-1">
+            <h1 className="font-display font-extrabold text-xl tracking-tight">
               Lava Jato Gestão
             </h1>
-            <p className="text-slate-400 text-xs">Faça login para continuar</p>
+            <p
+              className="font-mono-app mt-1"
+              style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)" }}
+            >
+              Faça login para continuar
+            </p>
           </div>
-          
+
           <Form method="post" className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-xs font-medium text-slate-300 mb-1">
+              <label
+                htmlFor="email"
+                className="block font-mono-app text-xs mb-1"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
                 Email
               </label>
               <input
@@ -70,12 +99,17 @@ export default function Login() {
                 id="email"
                 name="email"
                 required
-                className="input-field"
+                className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                style={inputStyle}
                 placeholder="seu@email.com"
               />
             </div>
             <div>
-              <label htmlFor="senha" className="block text-xs font-medium text-slate-300 mb-1">
+              <label
+                htmlFor="senha"
+                className="block font-mono-app text-xs mb-1"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
                 Senha
               </label>
               <input
@@ -83,41 +117,74 @@ export default function Login() {
                 id="senha"
                 name="senha"
                 required
-                className="input-field"
+                className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                style={inputStyle}
                 placeholder="••••••••"
               />
             </div>
             {actionData?.erro && (
-              <div className="bg-red-900/30 border border-red-800 text-red-400 px-3 py-2 rounded-lg text-sm">
+              <div
+                className="px-3 py-2 rounded font-mono-app text-sm"
+                style={{
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "rgba(239,68,68,0.95)",
+                }}
+              >
                 {actionData.erro}
               </div>
             )}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-2.5 rounded font-mono-app text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "#4D7C5F", color: "#0C0C0C" }}
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4"
+                    style={{ color: "#0C0C0C" }}
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                   Entrando...
                 </span>
-              ) : "Entrar"}
+              ) : (
+                "Entrar"
+              )}
             </button>
           </Form>
-          
-          <p className="mt-4 text-center text-xs text-slate-400">
+
+          <p
+            className="mt-4 text-center font-mono-app"
+            style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}
+          >
             Primeira vez?{" "}
-            <a href="/registro" className="font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">
+            <Link
+              to="/registro"
+              className="font-semibold text-accent hover:opacity-80 transition-opacity"
+            >
               Criar conta
-            </a>
+            </Link>
           </p>
         </div>
       </div>
     </div>
   );
 }
-
