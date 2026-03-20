@@ -15,14 +15,19 @@ export function DesempenhoFuncionarios({
   funcionarios: Funcionario[];
 }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div className="lg:col-span-2 card">
-        <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50">
-          <h3 className="font-semibold text-slate-100 text-sm">
-            Desempenho por Funcionário
-          </h3>
-        </div>
-        <div className="overflow-x-auto">
+    <div className="card">
+      <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+        <h3 className="font-semibold text-slate-100 text-sm">
+          Desempenho por Funcionário
+        </h3>
+        <Link
+          to="/funcionarios"
+          className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+        >
+          Ver Equipe
+        </Link>
+      </div>
+      <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-700">
               <tr>
@@ -84,48 +89,6 @@ export function DesempenhoFuncionarios({
               })}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <div className="card h-fit">
-        <div className="px-4 py-3 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
-          <h3 className="font-semibold text-slate-100 text-sm">Equipe</h3>
-          <Link
-            to="/funcionarios/novo"
-            className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
-          >
-            + Adicionar
-          </Link>
-        </div>
-        <div className="p-2">
-          <div className="space-y-0.5">
-            {funcionarios.map((funcionario) => (
-              <Link
-                key={funcionario.id}
-                to={`/funcionarios/${funcionario.id}`}
-                className="flex items-center justify-between p-2 hover:bg-slate-800/50 rounded transition-colors group border border-transparent hover:border-slate-700"
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`w-2 h-2 rounded-full ${
-                      funcionario.ativo ? "bg-emerald-400" : "bg-slate-500"
-                    }`}
-                  ></div>
-                  <span className="text-xs text-slate-300 font-medium group-hover:text-slate-100">
-                    {funcionario.nome}
-                  </span>
-                </div>
-                <svg
-                  className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                >
-                  <path d="M6 4l6 4-6 4V4z" />
-                </svg>
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

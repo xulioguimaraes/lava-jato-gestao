@@ -105,7 +105,7 @@ export async function listarLavagensSemana(
         l.user_id,
         f.nome as funcionario_nome
       FROM lavagens l
-      INNER JOIN funcionarios f ON l.funcionario_id = f.id
+      INNER JOIN funcionarios f ON l.funcionario_id = f.id AND f.ativo = 1
       WHERE l.data_lavagem >= ? AND l.data_lavagem <= ?${filtroUser}
       ORDER BY l.data_lavagem DESC, l.created_at DESC
     `,

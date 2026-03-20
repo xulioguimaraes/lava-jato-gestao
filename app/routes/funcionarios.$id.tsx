@@ -1,6 +1,12 @@
 import { json, redirect } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { Form, useLoaderData, useNavigation, Link } from "@remix-run/react";
+import {
+  Form,
+  useLoaderData,
+  useNavigation,
+  Link,
+  useSearchParams,
+} from "@remix-run/react";
 import { requererUsuario } from "~/utils/session.server";
 import {
   buscarFuncionarioPorId,
@@ -13,8 +19,9 @@ import {
   excluirLavagem,
   buscarLavagemPorId,
 } from "~/utils/lavagens.server";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatDatePtBr } from "~/utils/date";
+import { Toast } from "~/components/Toast";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   await requererUsuario(request);
@@ -50,7 +57,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (porcentagem !== undefined && (porcentagem < 0 || porcentagem > 100)) {
       return json(
         { erro: "Porcentagem deve estar entre 0 e 100" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     await atualizarFuncionario(
@@ -59,9 +66,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       undefined,
       telefone,
       ativo,
-      porcentagem
+      porcentagem,
     );
-    return redirect(`/funcionarios/${params.id}`);
+    return redirect(`/funcionarios/${params.id}?toast=saved`);
   }
 
   if (intent === "updateLavagem") {
@@ -74,7 +81,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (!descricao || !preco || !dataLavagem) {
       return json(
         { erro: "Descrição, preço e data são obrigatórios" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -102,9 +109,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       descricao,
       precoNum,
       fotoUrl,
-      dataLavagem
+      dataLavagem,
     );
-    return redirect(`/funcionarios/${params.id}`);
+    return redirect(`/funcionarios/${params.id}?toast=saved`);
   }
 
   if (intent === "deleteLavagem") {
@@ -119,9 +126,26 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function FuncionarioDetalhes() {
   const { funcionario, lavagens, comissao } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isSubmitting =
+    navigation.state === "submitting" || navigation.state === "loading";
   const [isEditing, setIsEditing] = useState(false);
   const [editingLavagemId, setEditingLavagemId] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    const toastParam = searchParams.get("toast");
+    if (toastParam === "saved") {
+      setShowToast(true);
+      setIsEditing(false);
+      setEditingLavagemId(null);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("toast");
+      setSearchParams(newParams, { replace: true });
+      const timer = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, setSearchParams]);
 
   // Função para formatar telefone para WhatsApp
   const formatarTelefoneWhatsApp = (telefone: string | null) => {
@@ -137,6 +161,12 @@ export default function FuncionarioDetalhes() {
 
   return (
     <div className="min-h-screen bg-slate-900">
+      {showToast && (
+        <Toast
+          message="Salvo com sucesso!"
+          onClose={() => setShowToast(false)}
+        />
+      )}
       <header className="bg-slate-800 border-b border-slate-700">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
           <div className="flex items-center gap-2.5">
@@ -174,14 +204,16 @@ export default function FuncionarioDetalhes() {
               {!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="btn-secondary text-xs py-1.5 px-3"
+                  disabled={isSubmitting}
+                  className="btn-secondary text-xs py-1.5 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Editar
                 </button>
               ) : (
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="btn-secondary text-xs py-1.5 px-3"
+                  disabled={isSubmitting}
+                  className="btn-secondary text-xs py-1.5 px-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
@@ -310,14 +342,15 @@ export default function FuncionarioDetalhes() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="btn-primary"
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? "Salvando..." : "Salvar Alterações"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="btn-secondary"
+                  disabled={isSubmitting}
+                  className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
@@ -467,14 +500,15 @@ export default function FuncionarioDetalhes() {
                         <button
                           type="submit"
                           disabled={isSubmitting}
-                          className="btn-primary text-xs"
+                          className="btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSubmitting ? "Salvando..." : "Salvar"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingLavagemId(null)}
-                          className="btn-secondary text-xs"
+                          disabled={isSubmitting}
+                          className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Cancelar
                         </button>
@@ -509,7 +543,8 @@ export default function FuncionarioDetalhes() {
                       <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700">
                         <button
                           onClick={() => setEditingLavagemId(lavagem.id)}
-                          className="btn-secondary text-xs py-1 px-2"
+                          disabled={isSubmitting}
+                          className="btn-secondary text-xs py-1 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Editar
                         </button>
@@ -527,11 +562,11 @@ export default function FuncionarioDetalhes() {
                           <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="btn-danger text-xs py-1 px-2"
+                            className="btn-danger text-xs py-1 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={(e) => {
                               if (
                                 !confirm(
-                                  "Tem certeza que deseja excluir esta lavagem?"
+                                  "Tem certeza que deseja excluir esta lavagem?",
                                 )
                               ) {
                                 e.preventDefault();

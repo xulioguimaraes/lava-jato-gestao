@@ -54,8 +54,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     ]);
 
   const lucroLiquido = totais.total - totalDespesas;
+  const funcionariosAtivos = funcionarios.filter((f) => f.ativo);
   const porcentagens = new Map(
-    funcionarios.map((f) => [f.id, f.porcentagem_comissao || 40])
+    funcionariosAtivos.map((f) => [f.id, f.porcentagem_comissao || 40])
   );
   const totalComissoes = lavagens.reduce((sum, l) => {
     const perc = porcentagens.get(l.funcionario_id) ?? 40;
@@ -65,7 +66,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({
     lavagens,
     totais,
-    funcionarios,
+    funcionarios: funcionariosAtivos,
     despesas,
     totalDespesas,
     lucroLiquido,
@@ -309,7 +310,7 @@ export default function Dashboard() {
           navegarSemana={navegarSemana}
           totalReceita={totais.total}
           totalLavagens={lavagens.length}
-          totalFuncionariosAtivos={funcionarios.filter((f) => f.ativo).length}
+          totalFuncionariosAtivos={funcionarios.length}
           totalDespesas={totalDespesas}
         />
 
@@ -380,11 +381,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <LavagensRecentes lavagens={lavagens} />
 
-          <DespesasRecentes
-            despesas={despesas}
-            editingDespesaId={editingDespesaId}
-            setEditingDespesaId={setEditingDespesaId}
-          />
+          <ResumoSemanal lavagens={lavagens} despesas={despesas} />
         </div>
 
         <DesempenhoFuncionarios
@@ -394,7 +391,11 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
           <div className="lg:col-span-1">
-            <ResumoSemanal lavagens={lavagens} despesas={despesas} />
+            <DespesasRecentes
+              despesas={despesas}
+              editingDespesaId={editingDespesaId}
+              setEditingDespesaId={setEditingDespesaId}
+            />
           </div>
         </div>
       </div>

@@ -31,13 +31,22 @@ export interface Funcionario {
 }
 
 export async function listarFuncionarios(
-  userId?: string
+  userId?: string,
+  apenasAtivos?: boolean
 ): Promise<Funcionario[]> {
   await ensureUserIdColumn();
   try {
-    const where = userId ? " WHERE (user_id = ? OR user_id IS NULL)" : "";
+    const conditions: string[] = [];
+    const args: (string | number)[] = [];
+    if (userId) {
+      conditions.push("(user_id = ? OR user_id IS NULL)");
+      args.push(userId);
+    }
+    if (apenasAtivos) {
+      conditions.push("ativo = 1");
+    }
+    const where = conditions.length ? " WHERE " + conditions.join(" AND ") : "";
     const sql = `SELECT id, nome, email, telefone, ativo, porcentagem_comissao, user_id, created_at FROM funcionarios${where} ORDER BY nome`;
-    const args = userId ? [userId] : [];
     const result = await db.execute({ sql, args });
 
     if (!result || !result.rows) {

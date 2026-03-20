@@ -24,10 +24,9 @@ export async function loader({ params }: LoaderFunctionArgs) {
     throw new Response("Página não encontrada", { status: 404 });
   }
 
-  // TODO: filtrar por user_id quando as tabelas estiverem multitenant
-  const funcionarios = await listarFuncionarios();
+  const funcionarios = await listarFuncionarios(usuario.id, true);
   return json({
-    funcionarios: funcionarios.filter((f) => f.ativo),
+    funcionarios,
     usuario,
   });
 }

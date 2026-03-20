@@ -36,7 +36,7 @@ export function LavagensRecentes({
           </div>
         ) : (
           <div className="divide-y divide-slate-700">
-            {lavagens.slice(0, 5).map((lavagem) => (
+            {lavagens.slice(0, 6).map((lavagem) => (
               <div
                 key={lavagem.id}
                 className="p-3 hover:bg-slate-800/50 transition-colors flex items-start justify-between group"
@@ -77,7 +77,7 @@ export function LavagensRecentes({
                 </div>
               </div>
             ))}
-            {lavagens.length > 5 && (
+            {lavagens.length > 6 && (
               <div className="p-2 text-center border-t border-slate-700 bg-slate-800/30">
                 <Link
                   to="/lavagens"
