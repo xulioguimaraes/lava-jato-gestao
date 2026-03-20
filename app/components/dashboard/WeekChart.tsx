@@ -7,6 +7,7 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
+import { useNavigate } from "@remix-run/react";
 import { parseDateOnly } from "~/utils/date";
 
 type LavagemLike = { data_lavagem: string; preco: number };
@@ -21,7 +22,7 @@ const diasOrdem = [
   { label: "DOM", value: 0 },
 ];
 
-type Props = { lavagens: LavagemLike[] };
+type Props = { lavagens: LavagemLike[]; offsetSemana?: number };
 
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -46,16 +47,30 @@ function CustomXAxisTick({
   payload,
   index,
   data,
+  offsetSemana,
+  onDayClick,
 }: {
   x: number | string;
   y: number | string;
   payload?: { value: string };
   index?: number;
   data: { day: string; value: number }[];
+  offsetSemana: number;
+  onDayClick: (dayValue: number) => void;
 }) {
+  const dayValue = diasOrdem[index ?? 0]?.value ?? 0;
   const value = data[index ?? 0]?.value ?? 0;
+  const handleClick = () => onDayClick(dayValue);
+
   return (
-    <g transform={`translate(${Number(x)},${Number(y)})`}>
+    <g
+      transform={`translate(${Number(x)},${Number(y)})`}
+      onClick={handleClick}
+      style={{ cursor: "pointer" }}
+      role="button"
+      aria-label={`Ver lavagens de ${payload?.value ?? ""}`}
+    >
+      <title>Clique para ver lavagens de {payload?.value ?? ""}</title>
       <text
         x={0}
         y={0}
@@ -83,7 +98,16 @@ function CustomXAxisTick({
   );
 }
 
-export function WeekChart({ lavagens }: Props) {
+export function WeekChart({ lavagens, offsetSemana = 0 }: Props) {
+  const navigate = useNavigate();
+
+  const handleDayClick = (dayValue: number) => {
+    const params = new URLSearchParams();
+    if (offsetSemana !== 0) params.set("semana", offsetSemana.toString());
+    params.set("dia", dayValue.toString());
+    navigate(`/lavagens?${params.toString()}`);
+  };
+
   const porDia = diasOrdem.map((d) => ({
     day: d.label,
     value: 0,
@@ -115,7 +139,14 @@ export function WeekChart({ lavagens }: Props) {
               dataKey="day"
               axisLine={false}
               tickLine={false}
-              tick={(props) => <CustomXAxisTick {...props} data={porDia} />}
+              tick={(props) => (
+                <CustomXAxisTick
+                  {...props}
+                  data={porDia}
+                  offsetSemana={offsetSemana}
+                  onDayClick={handleDayClick}
+                />
+              )}
             />
             <ReferenceLine
               y={0}

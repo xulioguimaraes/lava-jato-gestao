@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   nome TEXT NOT NULL,
   nome_negocio TEXT,
   slug TEXT UNIQUE,
+  email_verificado INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

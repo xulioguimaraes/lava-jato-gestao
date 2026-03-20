@@ -38,12 +38,79 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
+const dias = [
+  { label: "Todos os dias", value: "todos" },
+  { label: "Domingo", value: "0" },
+  { label: "Segunda", value: "1" },
+  { label: "Terça", value: "2" },
+  { label: "Quarta", value: "3" },
+  { label: "Quinta", value: "4" },
+  { label: "Sexta", value: "5" },
+  { label: "Sábado", value: "6" },
+];
+
+const formasPagamento = [
+  { label: "Todas", value: "todos" },
+  { label: "Pix", value: "pix" },
+  { label: "Dinheiro", value: "dinheiro" },
+];
+
+function getFiltrosFromParams(
+  params: URLSearchParams
+): { dia: number | "todos"; forma: string; funcionario: string } {
+  const dia = params.get("dia");
+  let diaVal: number | "todos" = "todos";
+  if (dia !== null && dia !== "") {
+    const n = parseInt(dia, 10);
+    if (n >= 0 && n <= 6) diaVal = n;
+  }
+
+  const forma = params.get("forma");
+  const formaVal = forma === "pix" || forma === "dinheiro" ? forma : "todos";
+  const funcionario = params.get("funcionario") ?? "todos";
+
+  return { dia: diaVal, forma: formaVal, funcionario };
+}
+
+function applyFiltros<T extends { funcionario_id: string; forma_pagamento: string | null; data_lavagem: string }>(
+  lavagens: T[],
+  filtros: { dia: number | "todos"; forma: string; funcionario: string }
+): T[] {
+  return lavagens.filter((l) => {
+    if (filtros.dia !== "todos") {
+      const d = parseDateOnly(l.data_lavagem);
+      if (d.getDay() !== filtros.dia) return false;
+    }
+    if (filtros.forma !== "todos" && l.forma_pagamento !== filtros.forma) return false;
+    if (filtros.funcionario !== "todos" && l.funcionario_id !== filtros.funcionario)
+      return false;
+    return true;
+  });
+}
+
+const inputStyle = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.1)",
+};
+
 export default function LavagensPage() {
   const { lavagens, offsetSemana, infoSemana, usuario, usuarioSlug } =
     useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [filtroDia, setFiltroDia] = useState<number | "todos">("todos");
+  const [filtros, setFiltros] = useState(() => getFiltrosFromParams(searchParams));
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const funcionariosUnicos = useMemo(() => {
+    const map = new Map<string, string>();
+    lavagens.forEach((l) => {
+      if (!map.has(l.funcionario_id)) map.set(l.funcionario_id, l.funcionario_nome);
+    });
+    return Array.from(map.entries()).map(([id, nome]) => ({ id, nome }));
+  }, [lavagens]);
+
+  useEffect(() => {
+    setFiltros(getFiltrosFromParams(searchParams));
+  }, [searchParams]);
 
   useEffect(() => {
     if (!showUserMenu) return;
@@ -57,39 +124,44 @@ export default function LavagensPage() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showUserMenu]);
 
-  const lavagensFiltradas = useMemo(() => {
-    if (filtroDia === "todos") return lavagens;
-    return lavagens.filter((lavagem) => {
-      const d = parseDateOnly(lavagem.data_lavagem);
-      return d.getDay() === filtroDia;
-    });
-  }, [lavagens, filtroDia]);
+  const lavagensFiltradas = useMemo(
+    () => applyFiltros(lavagens, filtros),
+    [lavagens, filtros]
+  );
 
   const totalFiltrado = useMemo(
     () => lavagensFiltradas.reduce((acc, l) => acc + l.preco, 0),
     [lavagensFiltradas],
   );
 
-  // Função para navegar entre semanas
-  const navegarSemana = (novoOffset: number) => {
+  const atualizarFiltros = (updates: {
+    dia?: number | "todos";
+    forma?: string;
+    funcionario?: string;
+  }) => {
+    const next = {
+      dia: updates.dia !== undefined ? updates.dia : filtros.dia,
+      forma: updates.forma !== undefined ? updates.forma : filtros.forma,
+      funcionario:
+        updates.funcionario !== undefined ? updates.funcionario : filtros.funcionario,
+    };
+    setFiltros(next);
     const params = new URLSearchParams(searchParams);
-    if (novoOffset === 0) {
-      params.delete("semana");
-    } else {
-      params.set("semana", novoOffset.toString());
-    }
+    if (next.dia === "todos") params.delete("dia");
+    else params.set("dia", next.dia.toString());
+    if (next.forma === "todos") params.delete("forma");
+    else params.set("forma", next.forma);
+    if (next.funcionario === "todos") params.delete("funcionario");
+    else params.set("funcionario", next.funcionario);
     setSearchParams(params);
   };
 
-  const dias = [
-    { label: "Dom", value: 0 },
-    { label: "Seg", value: 1 },
-    { label: "Ter", value: 2 },
-    { label: "Qua", value: 3 },
-    { label: "Qui", value: 4 },
-    { label: "Sex", value: 5 },
-    { label: "Sáb", value: 6 },
-  ];
+  const navegarSemana = (novoOffset: number) => {
+    const params = new URLSearchParams(searchParams);
+    if (novoOffset === 0) params.delete("semana");
+    else params.set("semana", novoOffset.toString());
+    setSearchParams(params);
+  };
 
   return (
     <div className="min-h-screen bg-deep pb-24 md:pb-8">
@@ -149,43 +221,75 @@ export default function LavagensPage() {
           </div>
 
           <div
-            className="px-5 py-3 flex flex-wrap gap-2"
+            className="px-5 py-4 flex flex-wrap gap-3"
             style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
           >
-            <button
-              onClick={() => setFiltroDia("todos")}
-              className={`text-xs px-3 py-1.5 rounded font-mono-app transition-colors ${
-                filtroDia === "todos"
-                  ? "bg-[#4D7C5F] text-[#0C0C0C]"
-                  : "hover-item"
-              }`}
-              style={
-                filtroDia !== "todos"
-                  ? { border: "1px solid rgba(255,255,255,0.1)" }
-                  : undefined
-              }
-            >
-              Todos
-            </button>
-            {dias.map((dia) => (
-              <button
-                key={dia.value}
-                onClick={() => setFiltroDia(dia.value)}
-                className={`text-xs px-3 py-1.5 rounded font-mono-app transition-colors ${
-                  filtroDia === dia.value
-                    ? "bg-[#4D7C5F] text-[#0C0C0C]"
-                    : "hover-item"
-                }`}
-                style={
-                  filtroDia !== dia.value
-                    ? { border: "1px solid rgba(255,255,255,0.1)" }
-                    : undefined
-                }
-                title={`Filtrar por ${dia.label}`}
+            <div className="flex flex-col gap-1">
+              <label
+                className="font-mono-app"
+                style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)" }}
               >
-                {dia.label}
-              </button>
-            ))}
+                Dia
+              </label>
+              <select
+                value={filtros.dia === "todos" ? "todos" : filtros.dia.toString()}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  atualizarFiltros({
+                    dia: v === "todos" ? ("todos" as const) : parseInt(v, 10),
+                  });
+                }}
+                className="font-mono-app text-sm px-3 py-2 rounded min-w-[140px]"
+                style={inputStyle}
+              >
+                {dias.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label
+                className="font-mono-app"
+                style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)" }}
+              >
+                Forma de pagamento
+              </label>
+              <select
+                value={filtros.forma}
+                onChange={(e) => atualizarFiltros({ forma: e.target.value })}
+                className="font-mono-app text-sm px-3 py-2 rounded min-w-[140px]"
+                style={inputStyle}
+              >
+                {formasPagamento.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label
+                className="font-mono-app"
+                style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)" }}
+              >
+                Funcionário
+              </label>
+              <select
+                value={filtros.funcionario}
+                onChange={(e) => atualizarFiltros({ funcionario: e.target.value })}
+                className="font-mono-app text-sm px-3 py-2 rounded min-w-[140px]"
+                style={inputStyle}
+              >
+                <option value="todos">Todos</option>
+                {funcionariosUnicos.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {lavagens.length === 0 ? (

@@ -120,7 +120,17 @@ export function DashboardHeader({
               }}
             >
               <Link
+                to="/configuracoes"
+                onClick={() => setShowUserMenu(false)}
+                className="block px-4 py-2 text-sm hover-item"
+                style={{ color: "rgba(255,255,255,0.8)" }}
+              >
+                Configurações
+              </Link>
+              <Link
                 to={`/${usuarioSlug || "publico"}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setShowUserMenu(false)}
                 className="block px-4 py-2 text-sm hover-item"
                 style={{ color: "rgba(255,255,255,0.8)" }}

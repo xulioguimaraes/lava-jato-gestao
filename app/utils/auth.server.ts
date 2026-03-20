@@ -8,6 +8,7 @@ export interface Usuario {
   nome: string;
   nome_negocio?: string | null;
   slug?: string | null;
+  email_verificado?: number;
 }
 
 export async function criarUsuario(
@@ -33,7 +34,7 @@ export async function verificarLogin(
   senha: string
 ): Promise<Usuario | null> {
   const result = await db.execute({
-    sql: "SELECT id, email, senha_hash, nome, slug, nome_negocio FROM usuarios WHERE email = ?",
+    sql: "SELECT id, email, senha_hash, nome, slug, nome_negocio, COALESCE(email_verificado, 0) as email_verificado FROM usuarios WHERE email = ?",
     args: [email],
   });
 
@@ -56,12 +57,13 @@ export async function verificarLogin(
     nome: usuario.nome as string,
     nome_negocio: (usuario.nome_negocio as string) || null,
     slug: (usuario.slug as string) || null,
+    email_verificado: (usuario.email_verificado as number) ?? 0,
   };
 }
 
 export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
   const result = await db.execute({
-    sql: "SELECT id, email, nome, slug, nome_negocio FROM usuarios WHERE id = ?",
+    sql: "SELECT id, email, nome, slug, nome_negocio, COALESCE(email_verificado, 0) as email_verificado FROM usuarios WHERE id = ?",
     args: [id],
   });
 
@@ -76,12 +78,13 @@ export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
     nome: usuario.nome as string,
     nome_negocio: (usuario.nome_negocio as string) || null,
     slug: (usuario.slug as string) || null,
+    email_verificado: (usuario.email_verificado as number) ?? 0,
   };
 }
 
 export async function buscarUsuarioPorSlug(slug: string): Promise<Usuario | null> {
   const result = await db.execute({
-    sql: "SELECT id, email, nome, slug, nome_negocio FROM usuarios WHERE slug = ?",
+    sql: "SELECT id, email, nome, slug, nome_negocio, COALESCE(email_verificado, 0) as email_verificado FROM usuarios WHERE slug = ?",
     args: [slug],
   });
 
@@ -96,6 +99,58 @@ export async function buscarUsuarioPorSlug(slug: string): Promise<Usuario | null
     nome: usuario.nome as string,
     nome_negocio: (usuario.nome_negocio as string) || null,
     slug: (usuario.slug as string) || null,
+    email_verificado: (usuario.email_verificado as number) ?? 0,
   };
+}
+
+export async function atualizarNome(usuarioId: string, novoNome: string): Promise<void> {
+  await db.execute({
+    sql: "UPDATE usuarios SET nome = ? WHERE id = ?",
+    args: [novoNome.trim(), usuarioId],
+  });
+}
+
+export async function atualizarNomeNegocio(
+  usuarioId: string,
+  novoNomeNegocio: string
+): Promise<void> {
+  await db.execute({
+    sql: "UPDATE usuarios SET nome_negocio = ? WHERE id = ?",
+    args: [novoNomeNegocio.trim(), usuarioId],
+  });
+}
+
+export async function redefinirSenha(
+  usuarioId: string,
+  senhaAtual: string,
+  senhaNova: string
+): Promise<{ ok: boolean; erro?: string }> {
+  const result = await db.execute({
+    sql: "SELECT senha_hash FROM usuarios WHERE id = ?",
+    args: [usuarioId],
+  });
+
+  if (result.rows.length === 0) {
+    return { ok: false, erro: "Usuário não encontrado" };
+  }
+
+  const senhaHashAtual = result.rows[0].senha_hash as string;
+  const senhaValida = await bcrypt.compare(senhaAtual, senhaHashAtual);
+
+  if (!senhaValida) {
+    return { ok: false, erro: "Senha atual incorreta" };
+  }
+
+  if (senhaNova.length < 6) {
+    return { ok: false, erro: "A nova senha deve ter pelo menos 6 caracteres" };
+  }
+
+  const senhaHashNova = await bcrypt.hash(senhaNova, 10);
+  await db.execute({
+    sql: "UPDATE usuarios SET senha_hash = ? WHERE id = ?",
+    args: [senhaHashNova, usuarioId],
+  });
+
+  return { ok: true };
 }
 
