@@ -8,6 +8,7 @@ import { obterInfoSemana } from "~/utils/lavagens.server";
 import { pageTitle } from "~/utils/meta";
 import { DashboardHeader } from "~/components/dashboard/DashboardHeader";
 import { BottomNav } from "~/components/dashboard/BottomNav";
+import { Toast } from "~/components/Toast";
 
 export const meta: MetaFunction = () => [
   { title: pageTitle("Equipe") },
@@ -57,6 +58,20 @@ export default function EquipePage() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showUserMenu]);
 
+  const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    const toast = searchParams.get("toast");
+    if (toast === "ok") {
+      setShowToast(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("toast");
+      setSearchParams(next, { replace: true });
+      const t = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams]);
+
   const ativos = funcionarios.filter((f) => f.ativo);
   const inativos = funcionarios.filter((f) => !f.ativo);
 
@@ -65,6 +80,12 @@ export default function EquipePage() {
 
   return (
     <div className="min-h-screen bg-deep pb-24 md:pb-8">
+      {showToast && (
+        <Toast
+          message="Funcionário cadastrado com sucesso!"
+          onClose={() => setShowToast(false)}
+        />
+      )}
       <DashboardHeader
         nomeNegocio={usuario.nome_negocio || "Lava Jato Gestão"}
         usuarioSlug={usuarioSlug || ""}

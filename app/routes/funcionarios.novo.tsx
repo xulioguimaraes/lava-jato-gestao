@@ -1,8 +1,19 @@
 import { json, redirect } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { Form, useActionData, useNavigation } from "@remix-run/react";
+import type {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  MetaFunction,
+} from "@remix-run/node";
+import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
 import { requererUsuario } from "~/utils/session.server";
 import { criarFuncionario } from "~/utils/funcionarios.server";
+import { BottomNav } from "~/components/dashboard/BottomNav";
+import { pageTitle } from "~/utils/meta";
+
+export const meta: MetaFunction = () => [
+  { title: pageTitle("Novo Funcionário") },
+  { name: "description", content: "Cadastrar novo funcionário - X Lava Jato" },
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requererUsuario(request);
@@ -28,7 +39,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (Number.isNaN(p) || p < 0 || p > 100) {
       return json(
         { erro: "Porcentagem deve ser entre 0 e 100" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     porcentagemNum = p;
@@ -40,9 +51,9 @@ export async function action({ request }: ActionFunctionArgs) {
       email || undefined,
       telefone || undefined,
       porcentagemNum,
-      usuario.id
+      usuario.id,
     );
-    return redirect("/dashboard");
+    return redirect("/funcionarios?toast=ok");
   } catch (error: any) {
     console.error("Erro ao criar funcionário (server):", error);
     return json(
@@ -50,10 +61,15 @@ export async function action({ request }: ActionFunctionArgs) {
         erro: "Erro ao criar funcionário. Tente novamente.",
         message: error?.message ?? "erro desconhecido",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
+
+const inputStyle = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.1)",
+};
 
 export default function NovoFuncionario() {
   const actionData = useActionData<typeof action>();
@@ -61,41 +77,58 @@ export default function NovoFuncionario() {
   const isSubmitting = navigation.state === "submitting";
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <header className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
-          <div className="flex items-center gap-2.5">
-            <a
-              href="/dashboard"
-              className="w-7 h-7 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-700 transition-colors"
-            >
-              <svg
-                className="w-3.5 h-3.5 text-slate-400"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M10 12l-4-4 4-4" />
-              </svg>
-            </a>
-            <div>
-              <h1 className="text-base font-semibold text-slate-100 leading-none">
-                Novo Funcionário
-              </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Cadastre um novo membro da equipe
-              </p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-deep pb-24 md:pb-8">
+      <header
+        className="sticky top-0 z-50 bg-deep px-4 py-3 flex items-center gap-3"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+      >
+        <Link
+          to="/funcionarios"
+          className="w-8 h-8 rounded-md flex items-center justify-center hover-item"
+          style={{ border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </Link>
+        <div>
+          <h1 className="font-display font-bold text-base tracking-tight">
+            Novo Funcionário
+          </h1>
+          <p
+            className="font-mono-app"
+            style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)" }}
+          >
+            Cadastre um novo membro da equipe
+          </p>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-4">
-        <div className="card max-w-2xl mx-auto p-2">
+      <main className="px-4 py-6 max-w-2xl mx-auto">
+        <div
+          className="bg-surface rounded-md p-5 md:p-6"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
           <Form method="post" className="space-y-4">
             {actionData?.erro && (
-              <div className="bg-red-900/30 border border-red-800 text-red-400 px-3 py-2 rounded-lg text-sm">
+              <div
+                className="px-3 py-2 rounded font-mono-app text-sm"
+                style={{
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "rgba(239,68,68,0.95)",
+                }}
+              >
                 {actionData.erro}
               </div>
             )}
@@ -103,7 +136,8 @@ export default function NovoFuncionario() {
             <div>
               <label
                 htmlFor="nome"
-                className="block text-xs font-medium text-slate-300 mb-1"
+                className="block font-mono-app text-xs mb-1"
+                style={{ color: "rgba(255,255,255,0.5)" }}
               >
                 Nome Completo *
               </label>
@@ -112,8 +146,27 @@ export default function NovoFuncionario() {
                 id="nome"
                 name="nome"
                 required
-                className="input-field"
+                className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                style={inputStyle}
                 placeholder="Ex: João da Silva"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="email"
+                className="block font-mono-app text-xs mb-1"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                style={inputStyle}
+                placeholder="email@exemplo.com"
               />
             </div>
 
@@ -121,7 +174,8 @@ export default function NovoFuncionario() {
               <div>
                 <label
                   htmlFor="telefone"
-                  className="block text-xs font-medium text-slate-300 mb-1"
+                  className="block font-mono-app text-xs mb-1"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
                 >
                   Telefone
                 </label>
@@ -129,16 +183,18 @@ export default function NovoFuncionario() {
                   type="tel"
                   id="telefone"
                   name="telefone"
-                  className="input-field"
+                  className="w-full px-3 py-2 rounded font-mono-app text-sm"
+                  style={inputStyle}
                   placeholder="(00) 00000-0000"
                 />
               </div>
               <div>
                 <label
                   htmlFor="porcentagem_comissao"
-                  className="block text-xs font-medium text-slate-300 mb-1"
+                  className="block font-mono-app text-xs mb-1"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
                 >
-                  Porcentagem de Comissão (%)
+                  Comissão (%)
                 </label>
                 <div className="relative">
                   <input
@@ -149,31 +205,77 @@ export default function NovoFuncionario() {
                     min={0}
                     max={100}
                     step={0.1}
-                    className="input-field pr-10"
+                    className="w-full px-3 py-2 pr-8 rounded font-mono-app text-sm"
+                    style={inputStyle}
                   />
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">
+                  <span
+                    className="absolute right-3 top-1/2 -translate-y-1/2 font-mono-app text-sm"
+                    style={{ color: "rgba(255,255,255,0.4)" }}
+                  >
                     %
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Padrão: 40%</p>
+                <p
+                  className="font-mono-app mt-1"
+                  style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}
+                >
+                  Padrão: 40%
+                </p>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-700 flex gap-2 justify-end">
-              <a href="/dashboard" className="btn-secondary">
+            <div
+              className="pt-4 flex gap-3 justify-end"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <Link
+                to="/funcionarios"
+                className="px-4 py-2.5 rounded font-mono-app text-sm"
+                style={{ border: "1px solid rgba(255,255,255,0.2)" }}
+              >
                 Cancelar
-              </a>
+              </Link>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="btn-primary"
+                className="px-4 py-2.5 rounded font-mono-app text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: "#4D7C5F", color: "#0C0C0C" }}
               >
-                {isSubmitting ? "Salvando..." : "Salvar Funcionário"}
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      style={{ color: "#0C0C0C" }}
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Salvando...
+                  </span>
+                ) : (
+                  "Salvar Funcionário"
+                )}
               </button>
             </div>
           </Form>
         </div>
-      </div>
+      </main>
+
+      <BottomNav />
     </div>
   );
 }
