@@ -87,6 +87,7 @@ export function LavagensList({ lavagens }: Props) {
       <div className="px-5 py-4">
         <Link
           to="/lavagens"
+          prefetch="intent"
           className="font-mono-app text-accent hover:opacity-80"
           style={{ fontSize: "0.75rem", color: "#4D7C5F" }}
         >

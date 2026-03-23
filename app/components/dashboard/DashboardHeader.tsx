@@ -44,12 +44,13 @@ export function DashboardHeader({
       style={{ borderColor: "rgba(255,255,255,0.07)" }}
     >
       <div className="flex items-center justify-between px-4 h-14 max-w-[1200px] mx-auto">
-        <a
-          href="/dashboard"
+        <Link
+          to="/dashboard"
+          prefetch="intent"
           className="font-display font-bold text-sm tracking-tight truncate max-w-[140px]"
         >
           {nomeNegocio || "Lava Jato"}
-        </a>
+        </Link>
 
         <div className="flex items-center gap-3">
           <button
@@ -121,6 +122,7 @@ export function DashboardHeader({
             >
               <Link
                 to="/configuracoes"
+                prefetch="intent"
                 onClick={() => setShowUserMenu(false)}
                 className="block px-4 py-2 text-sm hover-item"
                 style={{ color: "rgba(255,255,255,0.8)" }}
@@ -129,6 +131,7 @@ export function DashboardHeader({
               </Link>
               <Link
                 to={`/${usuarioSlug || "publico"}`}
+                prefetch="intent"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setShowUserMenu(false)}
