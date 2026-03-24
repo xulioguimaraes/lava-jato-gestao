@@ -5,8 +5,10 @@ import type {
   MetaFunction,
 } from "@remix-run/node";
 import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
+import { useCallback } from "react";
 import { requererUsuario } from "~/utils/session.server";
 import { criarFuncionario } from "~/utils/funcionarios.server";
+import { verificarLimiteFuncionarios } from "~/utils/plano.server";
 import { BottomNav } from "~/components/dashboard/BottomNav";
 import { pageTitle } from "~/utils/meta";
 
@@ -22,6 +24,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const usuario = await requererUsuario(request);
+
+  const limite = await verificarLimiteFuncionarios(
+    usuario.id,
+    usuario.plan_type ?? "free"
+  );
+  if (!limite.permitido) {
+    return json(
+      {
+        erro: `Seu plano gratuito permite apenas ${limite.limite} funcionário(s). Faça upgrade para o Plano Pro para adicionar mais.`,
+        upgrade: true,
+      },
+      { status: 403 }
+    );
+  }
 
   const formData = await request.formData();
   const nome = formData.get("nome") as string;
@@ -71,10 +87,22 @@ const inputStyle = {
   border: "1px solid rgba(255,255,255,0.1)",
 };
 
+function mascararTelefone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export default function NovoFuncionario() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+
+  const handleTelefone = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    e.target.value = mascararTelefone(e.target.value);
+  }, []);
 
   return (
     <div className="min-h-screen bg-deep pb-24 md:pb-8">
@@ -130,6 +158,14 @@ export default function NovoFuncionario() {
                 }}
               >
                 {actionData.erro}
+                {(actionData as any).upgrade && (
+                  <Link
+                    to="/assinatura"
+                    className="block mt-2 underline text-amber-400 text-xs"
+                  >
+                    Ver planos →
+                  </Link>
+                )}
               </div>
             )}
 
@@ -186,6 +222,8 @@ export default function NovoFuncionario() {
                   className="w-full px-3 py-2 rounded font-mono-app text-sm"
                   style={inputStyle}
                   placeholder="(00) 00000-0000"
+                  maxLength={15}
+                  onChange={handleTelefone}
                 />
               </div>
               <div>

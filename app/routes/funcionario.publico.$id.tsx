@@ -105,7 +105,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // Foto não é mais capturada pelo usuário
   const fotoUrl: string | null = null;
 
-  const formasValidas = ["pix", "dinheiro"];
+  const formasValidas = ["pix", "dinheiro", "cartao"];
   const formaPagamentoValida = formasValidas.includes(formaPagamento || "")
     ? formaPagamento
     : null;
@@ -679,6 +679,7 @@ export default function FuncionarioPublico() {
                     >
                       <option value="pix">Pix</option>
                       <option value="dinheiro">Dinheiro</option>
+                      <option value="cartao">Cartão de Crédito</option>
                     </select>
                   </div>
                 </div>

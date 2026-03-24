@@ -9,6 +9,11 @@ export interface Usuario {
   nome_negocio?: string | null;
   slug?: string | null;
   email_verificado?: number;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  subscription_status?: string | null;
+  plan_type?: string | null;
+  billing_period_end?: string | null;
 }
 
 export async function criarUsuario(
@@ -63,7 +68,13 @@ export async function verificarLogin(
 
 export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
   const result = await db.execute({
-    sql: "SELECT id, email, nome, slug, nome_negocio, COALESCE(email_verificado, 0) as email_verificado FROM usuarios WHERE id = ?",
+    sql: `SELECT id, email, nome, slug, nome_negocio,
+      COALESCE(email_verificado, 0) as email_verificado,
+      stripe_customer_id, stripe_subscription_id,
+      COALESCE(subscription_status, 'free') as subscription_status,
+      COALESCE(plan_type, 'free') as plan_type,
+      billing_period_end
+      FROM usuarios WHERE id = ?`,
     args: [id],
   });
 
@@ -79,6 +90,11 @@ export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
     nome_negocio: (usuario.nome_negocio as string) || null,
     slug: (usuario.slug as string) || null,
     email_verificado: (usuario.email_verificado as number) ?? 0,
+    stripe_customer_id: (usuario.stripe_customer_id as string) || null,
+    stripe_subscription_id: (usuario.stripe_subscription_id as string) || null,
+    subscription_status: (usuario.subscription_status as string) || "free",
+    plan_type: (usuario.plan_type as string) || "free",
+    billing_period_end: (usuario.billing_period_end as string) || null,
   };
 }
 

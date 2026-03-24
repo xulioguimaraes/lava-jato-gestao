@@ -271,6 +271,46 @@ export default function Configuracoes() {
           </div>
         </div>
 
+        {/* Assinatura */}
+        <Link
+          to="/assinatura"
+          className="block bg-surface rounded-md p-5 hover-item"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2
+                className="font-mono-app uppercase tracking-[0.12em] mb-1"
+                style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.4)" }}
+              >
+                Plano & Assinatura
+              </h2>
+              <p
+                className="font-mono-app text-sm"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+              >
+                {usuario.plan_type === "pro"
+                  ? "Plano Pro ativo"
+                  : "Plano Gratuito — faça upgrade"}
+              </p>
+            </div>
+            <svg
+              className="w-4 h-4"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </div>
+        </Link>
+
         {/* Redefinir senha */}
         <Link
           to="/configuracoes/senha"
