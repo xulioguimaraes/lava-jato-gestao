@@ -156,7 +156,7 @@ export default function EquipePage() {
               </button>
               {accordionAtivos && (
                 <div
-                  className="px-4 pb-4 pt-0 space-y-2"
+                  className="px-4 pb-4 pt-3 space-y-2"
                   style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
                 >
                   {ativos.map((funcionario) => (

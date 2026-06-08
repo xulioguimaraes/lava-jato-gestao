@@ -34,12 +34,21 @@ function ReceiptIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+function CreditCardIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <rect x="1" y="4" width="22" height="16" rx="2" />
+      <path d="M1 10h22" />
+    </svg>
+  );
+}
 
 const items = [
   { to: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { to: "/lavagens", label: "Lavagens", Icon: DropletsIcon },
   { to: "/funcionarios", label: "Funcionários", Icon: UsersIcon },
   { to: "/despesas", label: "Despesas", Icon: ReceiptIcon },
+  { to: "/assinatura", label: "Assinatura", Icon: CreditCardIcon },
 ];
 
 export function BottomNav() {

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\(''stripe''\\)\")",
+      "Bash(npm run:*)",
+      "Bash(npx tsx:*)",
+      "Bash(node -e \"require\\(''resend''\\)\")"
+    ]
+  }
+}

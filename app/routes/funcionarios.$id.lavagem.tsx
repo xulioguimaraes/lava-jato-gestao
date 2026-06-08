@@ -3,7 +3,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { buscarFuncionarioPorId } from "~/utils/funcionarios.server";
 import { criarLavagem } from "~/utils/lavagens.server";
-import { requererUsuario } from "~/utils/session.server";
+import { verificarLimiteLavagens } from "~/utils/plano.server";
+import { buscarUsuarioPorId } from "~/utils/auth.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const usuario = await requererUsuario(request);
@@ -15,10 +16,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const usuario = await requererUsuario(request);
   const funcionario = await buscarFuncionarioPorId(params.id!);
-  if (!funcionario || funcionario.user_id !== usuario.id) {
-    throw new Response("Funcionário não encontrado", { status: 404 });
+  if (funcionario?.user_id) {
+    const dono = await buscarUsuarioPorId(funcionario.user_id);
+    if (dono) {
+      const limite = await verificarLimiteLavagens(dono.id, dono.plan_type ?? "free");
+      if (!limite.permitido) {
+        return json(
+          {
+            erro: `Limite de ${limite.limite} lavagens por mês atingido no plano gratuito. O responsável precisa fazer upgrade para continuar.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
   }
 
   const formData = await request.formData();

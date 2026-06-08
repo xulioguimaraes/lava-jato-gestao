@@ -121,7 +121,7 @@ export default function PerfilFuncionario() {
                             <>
                               {" "}
                               • Forma:{" "}
-                              {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}
+                              {lavagem.forma_pagamento === "pix" ? "Pix" : lavagem.forma_pagamento === "cartao" ? "Cartão" : "Dinheiro"}
                             </>
                           )}
                         </p>

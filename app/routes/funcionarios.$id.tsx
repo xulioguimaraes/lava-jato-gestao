@@ -118,7 +118,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ erro: "Preço inválido" }, { status: 400 });
     }
 
-    const formasValidas = ["pix", "dinheiro"];
+    const formasValidas = ["pix", "dinheiro", "cartao"];
     const formaPagamentoValida = formaPagamento && formasValidas.includes(formaPagamento)
       ? formaPagamento
       : null;
@@ -496,7 +496,7 @@ export default function FuncionarioDetalhes() {
                     <p className="font-mono-app text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
                       {formatDatePtBr(lavagem.data_lavagem)}
                       {lavagem.forma_pagamento && (
-                        <> • {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}</>
+                        <> • {lavagem.forma_pagamento === "pix" ? "Pix" : lavagem.forma_pagamento === "cartao" ? "Cartão" : "Dinheiro"}</>
                       )}
                     </p>
                   </div>
@@ -797,6 +797,7 @@ export default function FuncionarioDetalhes() {
                   >
                     <option value="pix">Pix</option>
                     <option value="dinheiro">Dinheiro</option>
+                    <option value="cartao">Cartão de Crédito</option>
                   </select>
                 </div>
 

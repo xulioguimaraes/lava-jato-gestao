@@ -53,6 +53,7 @@ const formasPagamento = [
   { label: "Todas", value: "todos" },
   { label: "Pix", value: "pix" },
   { label: "Dinheiro", value: "dinheiro" },
+  { label: "Cartão", value: "cartao" },
 ];
 
 function getFiltrosFromParams(
@@ -66,7 +67,7 @@ function getFiltrosFromParams(
   }
 
   const forma = params.get("forma");
-  const formaVal = forma === "pix" || forma === "dinheiro" ? forma : "todos";
+  const formaVal = forma === "pix" || forma === "dinheiro" || forma === "cartao" ? forma : "todos";
   const funcionario = params.get("funcionario") ?? "todos";
 
   return { dia: diaVal, forma: formaVal, funcionario };
@@ -396,7 +397,7 @@ export default function LavagensPage() {
                           color: "rgba(255,255,255,0.4)",
                         }}
                       >
-                        {lavagem.forma_pagamento === "pix" ? "Pix" : "Dinheiro"}
+                        {lavagem.forma_pagamento === "pix" ? "Pix" : lavagem.forma_pagamento === "cartao" ? "Cartão" : "Dinheiro"}
                       </td>
                     </tr>
                   ))}
