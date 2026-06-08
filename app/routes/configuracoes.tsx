@@ -29,6 +29,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ usuario });
 }
 
+type ActionData = {
+  sucesso?: string;
+  erro?: string;
+  erroPara?: string;
+};
+
 export async function action({ request }: ActionFunctionArgs) {
   const usuario = await requererUsuario(request);
   const formData = await request.formData();
@@ -37,19 +43,19 @@ export async function action({ request }: ActionFunctionArgs) {
   if (intent === "atualizarNome") {
     const nome = (formData.get("nome") as string)?.trim();
     if (!nome || nome.length < 2) {
-      return json(
+      return json<ActionData>(
         { erro: "O nome deve ter pelo menos 2 caracteres", erroPara: "nome" },
         { status: 400 }
       );
     }
     await atualizarNome(usuario.id, nome);
-    return json({ sucesso: "Nome atualizado com sucesso!" });
+    return json<ActionData>({ sucesso: "Nome atualizado com sucesso!" });
   }
 
   if (intent === "atualizarNomeNegocio") {
     const nomeNegocio = (formData.get("nome_negocio") as string)?.trim() || "";
     if (!nomeNegocio || nomeNegocio.length < 2) {
-      return json(
+      return json<ActionData>(
         {
           erro: "O nome do negócio deve ter pelo menos 2 caracteres",
           erroPara: "nomeNegocio",
@@ -58,10 +64,12 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
     await atualizarNomeNegocio(usuario.id, nomeNegocio);
-    return json({ sucesso: "Nome do negócio atualizado com sucesso!" });
+    return json<ActionData>({
+      sucesso: "Nome do negócio atualizado com sucesso!",
+    });
   }
 
-  return json({ erro: "Ação inválida" }, { status: 400 });
+  return json<ActionData>({ erro: "Ação inválida" }, { status: 400 });
 }
 
 const inputStyle = {
@@ -110,7 +118,7 @@ export default function Configuracoes() {
         className="sticky top-0 z-50 bg-deep px-4 py-3 flex items-center gap-3"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
       >
-        <Link
+        <Link prefetch="intent"
           to="/dashboard"
           className="w-8 h-8 rounded-md flex items-center justify-center hover-item"
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
@@ -272,7 +280,7 @@ export default function Configuracoes() {
         </div>
 
         {/* Redefinir senha */}
-        <Link
+        <Link prefetch="intent"
           to="/configuracoes/senha"
           className="block bg-surface rounded-md p-5 hover-item"
           style={{ border: "1px solid rgba(255,255,255,0.07)" }}
@@ -310,7 +318,7 @@ export default function Configuracoes() {
         </Link>
 
         {/* Página pública */}
-        <Link
+        <Link prefetch="intent"
           to={`/${usuario.slug || "publico"}`}
           target="_blank"
           rel="noopener noreferrer"

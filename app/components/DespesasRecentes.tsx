@@ -34,13 +34,13 @@ export function DespesasRecentes({
       <div className="px-4 py-3 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
         <h3 className="font-semibold text-slate-100 text-sm">Despesas Recentes</h3>
         <div className="flex items-center gap-2">
-          <Link
+          <Link prefetch="intent"
             to="/despesas"
             className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
           >
             Ver todas
           </Link>
-          <Link
+          <Link prefetch="intent"
             to="/despesas/novo"
             className="btn-secondary py-1 px-2 text-xs h-auto min-h-0"
           >

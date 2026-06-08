@@ -118,7 +118,7 @@ export default function NovaDespesa() {
         className="sticky top-0 z-50 bg-deep px-4 py-3 flex items-center gap-3"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
       >
-        <Link
+        <Link prefetch="intent"
           to="/despesas"
           className="w-8 h-8 rounded-md flex items-center justify-center hover-item"
           style={{ border: "1px solid rgba(255,255,255,0.1)" }}
@@ -265,7 +265,7 @@ export default function NovaDespesa() {
               className="pt-4 flex gap-3 justify-end"
               style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
             >
-              <Link
+              <Link prefetch="intent"
                 to="/despesas"
                 className="px-4 py-2.5 rounded font-mono-app text-sm"
                 style={{ border: "1px solid rgba(255,255,255,0.2)" }}

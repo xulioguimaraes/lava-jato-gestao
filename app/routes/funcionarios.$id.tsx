@@ -417,7 +417,7 @@ export default function FuncionarioDetalhes() {
             >
               VALES DA SEMANA ({vales.length})
             </p>
-            <Link
+            <Link prefetch="intent"
               to={`/vales/novo?funcionario=${funcionario.id}`}
               className="font-mono-app text-xs py-1.5 px-3 rounded-lg"
               style={{

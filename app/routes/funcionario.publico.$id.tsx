@@ -281,7 +281,7 @@ export default function FuncionarioPublico() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         {backTo ? (
-          <Link
+          <Link prefetch="intent"
             to={backTo}
             className="w-8 h-8 rounded-md flex items-center justify-center hover-item"
             style={{ border: "1px solid rgba(255,255,255,0.1)" }}

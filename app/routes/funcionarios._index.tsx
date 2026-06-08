@@ -106,7 +106,7 @@ export default function EquipePage() {
             {funcionarios.length !== 1 ? "s" : ""} cadastrado
             {funcionarios.length !== 1 ? "s" : ""}
           </p>
-          <Link
+          <Link prefetch="intent"
             to="/funcionarios/novo"
             className="font-mono-app text-xs py-1.5 px-3 rounded-lg"
             style={{
@@ -160,7 +160,7 @@ export default function EquipePage() {
                   style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
                 >
                   {ativos.map((funcionario) => (
-                    <Link
+                    <Link prefetch="intent"
                       key={funcionario.id}
                       to={`/funcionarios/${funcionario.id}`}
                       className="flex items-center justify-between p-3 rounded-lg transition-colors group hover:bg-white/5"
@@ -256,7 +256,7 @@ export default function EquipePage() {
                   style={{ borderTop: "1px solid rgba(239,68,68,0.15)" }}
                 >
                   {inativos.map((funcionario) => (
-                    <Link
+                    <Link prefetch="intent"
                       key={funcionario.id}
                       to={`/funcionarios/${funcionario.id}`}
                       className="flex items-center justify-between p-3 rounded-lg transition-colors group hover:bg-red-500/5"
@@ -343,7 +343,7 @@ export default function EquipePage() {
               >
                 Nenhum funcionário cadastrado
               </p>
-              <Link
+              <Link prefetch="intent"
                 to="/funcionarios/novo"
                 className="font-mono-app text-sm inline-flex py-2 px-4 rounded-lg"
                 style={{

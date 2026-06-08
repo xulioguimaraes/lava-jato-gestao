@@ -296,7 +296,7 @@ export default function NovoVale() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Link
+              <Link prefetch="intent"
                 to="/dashboard"
                 className="flex-1 px-4 py-2.5 rounded font-mono-app text-sm text-center"
                 style={{ border: "1px solid rgba(255,255,255,0.2)" }}

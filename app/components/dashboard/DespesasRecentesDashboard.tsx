@@ -57,14 +57,14 @@ export function DespesasRecentesDashboard({
           DESPESAS RECENTES
         </p>
         <div className="flex items-center gap-2">
-          <Link
+          <Link prefetch="intent"
             to="/despesas"
             className="font-mono-app text-accent hover:opacity-80"
             style={{ fontSize: "0.65rem", color: "#4D7C5F" }}
           >
             Ver todas
           </Link>
-          <Link
+          <Link prefetch="intent"
             to="/despesas/novo"
             className="font-mono-app text-accent hover:opacity-80 flex items-center gap-1"
             style={{ fontSize: "0.65rem", color: "#4D7C5F" }}
@@ -83,7 +83,7 @@ export function DespesasRecentesDashboard({
           >
             Nenhuma despesa registrada
           </p>
-          <Link
+          <Link prefetch="intent"
             to="/despesas/novo"
             className="font-mono-app text-accent flex items-center gap-1.5 hover:opacity-80"
             style={{ fontSize: "0.8rem", color: "#4D7C5F" }}

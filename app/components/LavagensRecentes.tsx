@@ -79,7 +79,7 @@ export function LavagensRecentes({
             ))}
             {lavagens.length > 6 && (
               <div className="p-2 text-center border-t border-slate-700 bg-slate-800/30">
-                <Link
+                <Link prefetch="intent"
                   to="/lavagens"
                   className="text-xs text-indigo-400 font-medium hover:text-indigo-300 transition-colors"
                 >
