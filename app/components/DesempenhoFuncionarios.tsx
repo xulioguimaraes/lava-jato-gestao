@@ -20,7 +20,7 @@ export function DesempenhoFuncionarios({
         <h3 className="font-semibold text-slate-100 text-sm">
           Desempenho por Funcionário
         </h3>
-        <Link
+        <Link prefetch="intent"
           to="/funcionarios"
           className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
         >
@@ -83,7 +83,7 @@ export function DesempenhoFuncionarios({
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <Link
+                      <Link prefetch="intent"
                         to={`/funcionarios/${item.funcionario_id}`}
                         className="text-indigo-400 hover:text-indigo-300 font-medium text-xs hover:underline"
                       >

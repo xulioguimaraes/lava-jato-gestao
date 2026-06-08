@@ -67,6 +67,7 @@ export function BottomNav() {
             <Link
               key={item.label}
               to={item.to}
+              prefetch="intent"
               className="flex flex-col items-center gap-1 py-1"
               style={{ opacity: active ? 1 : 0.25 }}
             >

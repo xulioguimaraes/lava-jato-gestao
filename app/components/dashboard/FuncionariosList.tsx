@@ -40,6 +40,7 @@ export function FuncionariosList({ itens, funcionarios }: Props) {
         </p>
         <Link
           to="/funcionarios"
+          prefetch="intent"
           className="font-mono-app text-accent hover:opacity-80"
           style={{ fontSize: "0.65rem", color: "#4D7C5F" }}
         >
@@ -58,6 +59,7 @@ export function FuncionariosList({ itens, funcionarios }: Props) {
           <Link
             key={item.funcionario_id}
             to={`/funcionarios/${item.funcionario_id}`}
+            prefetch="intent"
             className="block px-5 py-4 hover-item cursor-pointer"
             style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
           >

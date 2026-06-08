@@ -1,19 +1,12 @@
 [build]
-  command = "npm install && npm run build"
-  publish = "public"
-  functions = "netlify/functions"
+  command = "npm run build"
+  publish = "build/client"
 
-[functions]
-  included_files = ["build/**", "node_modules/@libsql/**"]
-  node_bundler = "nft"
-
-[[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/server"
-  status = 200
+# A função do servidor é gerada automaticamente pelo @netlify/remix-adapter
+# (Vite plugin). Não é mais necessário definir functions/redirects manualmente.
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
 
 [[headers]]
@@ -23,4 +16,3 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-

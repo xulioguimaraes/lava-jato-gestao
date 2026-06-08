@@ -1,10 +1,7 @@
 import { vitePlugin as remix } from "@remix-run/dev";
+import { netlifyPlugin } from "@netlify/remix-adapter/plugin";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
-import dotenv from "dotenv";
-
-// Carrega variáveis de ambiente
-dotenv.config();
 
 export default defineConfig({
   plugins: [
@@ -13,9 +10,11 @@ export default defineConfig({
         v3_fetcherPersist: true,
         v3_relativeSplatPath: true,
         v3_throwAbortReason: true,
+        v3_lazyRouteDiscovery: true,
+        v3_singleFetch: false,
       },
     }),
+    netlifyPlugin(),
     tsconfigPaths(),
   ],
 });
-

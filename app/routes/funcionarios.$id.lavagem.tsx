@@ -6,9 +6,10 @@ import { criarLavagem } from "~/utils/lavagens.server";
 import { verificarLimiteLavagens } from "~/utils/plano.server";
 import { buscarUsuarioPorId } from "~/utils/auth.server";
 
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const usuario = await requererUsuario(request);
   const funcionario = await buscarFuncionarioPorId(params.id!);
-  if (!funcionario) {
+  if (!funcionario || funcionario.user_id !== usuario.id) {
     throw new Response("Funcionário não encontrado", { status: 404 });
   }
   return json({ funcionario });
@@ -36,6 +37,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const preco = formData.get("preco") as string;
   const foto = formData.get("foto") as File | null;
   const dataLavagem = formData.get("data_lavagem") as string;
+  const formaPagamento = formData.get("forma_pagamento") as string | null;
 
   if (!descricao || !preco || !dataLavagem) {
     return json({ erro: "Descrição, preço e data são obrigatórios" }, { status: 400 });
@@ -55,13 +57,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
     fotoUrl = `data:${foto.type};base64,${base64}`;
   }
 
+  const formasValidas = ["pix", "dinheiro"];
+  const formaPagamentoValida =
+    formaPagamento && formasValidas.includes(formaPagamento)
+      ? formaPagamento
+      : null;
+
   try {
     await criarLavagem(
       params.id!,
       descricao,
       precoNum,
       fotoUrl,
-      dataLavagem
+      dataLavagem,
+      formaPagamentoValida,
+      usuario.id
     );
     return redirect(`/funcionarios/${params.id}/perfil`);
   } catch (error) {
@@ -138,6 +148,21 @@ export default function NovaLavagem() {
                   className="input-field"
                 />
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="forma_pagamento" className="block text-xs font-medium text-slate-300 mb-1">
+                Forma de pagamento
+              </label>
+              <select
+                id="forma_pagamento"
+                name="forma_pagamento"
+                defaultValue="pix"
+                className="input-field"
+              >
+                <option value="pix">Pix</option>
+                <option value="dinheiro">Dinheiro</option>
+              </select>
             </div>
 
             <div>

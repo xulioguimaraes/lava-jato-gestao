@@ -100,7 +100,7 @@ export default function FuncionariosPublicoSlug() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {funcionarios.map((funcionario) => (
-              <Link
+              <Link prefetch="intent"
                 key={funcionario.id}
                 to={`/funcionario/publico/${funcionario.id}`}
                 className="block bg-surface rounded-md px-5 py-4 hover-item group"

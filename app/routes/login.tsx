@@ -176,7 +176,7 @@ export default function Login() {
             style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}
           >
             Primeira vez?{" "}
-            <Link
+            <Link prefetch="intent"
               to="/registro"
               className="font-semibold text-accent hover:opacity-80 transition-opacity"
             >

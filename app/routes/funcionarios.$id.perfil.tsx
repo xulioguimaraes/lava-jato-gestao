@@ -26,7 +26,7 @@ export default function PerfilFuncionario() {
       <header className="bg-slate-800 border-b border-slate-700">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
           <div className="flex items-center gap-2.5">
-            <Link
+            <Link prefetch="intent"
               to="/funcionarios/publico"
               className="w-7 h-7 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-700 transition-colors"
             >
@@ -73,7 +73,7 @@ export default function PerfilFuncionario() {
 
           {/* Botão para nova lavagem */}
           <div className="mb-4">
-            <Link
+            <Link prefetch="intent"
               to={`/funcionarios/${funcionario.id}/lavagem`}
               className="btn-primary inline-block"
             >
@@ -91,7 +91,7 @@ export default function PerfilFuncionario() {
                 <p className="text-slate-400 mb-3 text-sm">
                   Você ainda não registrou nenhuma lavagem esta semana
                 </p>
-                <Link
+                <Link prefetch="intent"
                   to={`/funcionarios/${funcionario.id}/lavagem`}
                   className="btn-primary inline-block"
                 >
@@ -150,7 +150,7 @@ export default function PerfilFuncionario() {
 
           {/* Link para voltar */}
           <div className="mt-4 text-center">
-            <Link
+            <Link prefetch="intent"
               to="/funcionarios/publico"
               className="text-indigo-400 hover:text-indigo-300 text-sm"
             >

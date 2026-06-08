@@ -212,7 +212,7 @@ export default function LavagensPage() {
                 Total: R$ {totalFiltrado.toFixed(2).replace(".", ",")}
               </p>
             </div>
-            <Link
+            <Link prefetch="intent"
               to={usuarioSlug ? `/${usuarioSlug}` : "/dashboard"}
               className="font-mono-app text-accent hover:opacity-80"
               style={{ fontSize: "0.65rem", color: "#4D7C5F" }}

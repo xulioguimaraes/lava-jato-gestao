@@ -139,7 +139,7 @@ export default function DespesasIndexPage() {
             <h2 className="font-mono-app font-semibold text-sm">
               Despesas ({despesasFiltradas.length})
             </h2>
-            <Link
+            <Link prefetch="intent"
               to="/despesas/novo"
               className="font-mono-app text-xs py-1.5 px-3 rounded-lg"
               style={{

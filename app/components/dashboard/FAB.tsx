@@ -41,6 +41,7 @@ export function FAB({ usuarioSlug }: FABProps) {
                 <Link
                   key={opt.label}
                   to={opt.to}
+                  prefetch="intent"
                   className="block w-full text-left px-6 py-3.5 font-mono-app text-sm hover-item"
                   style={{
                     borderTop:
